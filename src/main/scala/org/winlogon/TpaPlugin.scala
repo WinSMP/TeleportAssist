@@ -1,3 +1,4 @@
+package org.winlogon
 // issues:
 // maven or sbt?
 // /tpaaccept by default accept latest tpa requests, /tpaaccept <player> accepts request from player

@@ -1,0 +1,15 @@
+name: TpaPlugin
+version: "0.1.0"
+main: "org.winlogon.TpaPlugin"
+api-version: 1.21
+commands:
+  tpa:
+    description: "Teleport to a player"
+  tpaccept:
+    description: "Accept the teleport request"
+  tpdeny:
+    description: "Deny the teleport request"
+  tpahere:
+    description: "Teleport a player to you"
+  back:
+    description: "Teleport you back to the last place you were"
