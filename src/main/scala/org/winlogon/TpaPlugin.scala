@@ -1,8 +1,4 @@
 package org.winlogon
-// issues:
-// maven or sbt?
-// /tpaaccept by default accept latest tpa requests, /tpaaccept <player> accepts request from player
-// clickable links to /tpa, /tpaccept, /tpdeny, /tpahere, /back
 
 import org.bukkit.Bukkit
 import org.bukkit.command.Command
@@ -21,41 +17,62 @@ class TpaPlugin extends JavaPlugin {
         sender match {
             case player: Player =>
                 args match {
-                    case Array("tpa", targetName) => handleTpaCommand(player, targetName)
-                    case Array("tpaccept") => handleTpAcceptCommand(player)
-                    case Array("tpdeny") => handleTpDenyCommand(player)
-                    case Array("tpahere", targetName) => handleTpAHereCommand(player, targetName)
-                    case Array("back") => handleBackCommand(player)
+                    case Array("tpa", targetName) => tpaCommand(player, targetName)
+                    case Array("tpaccept") => tpAcceptCommand(player, None)
+                    case Array("tpaccept", requesterName) => tpAcceptCommand(player, Some(requesterName))
+                    case Array("tpdeny") => tpDenyCommand(player)
+                    case Array("tpahere", targetName) => tpAHereCommand(player, targetName)
+                    case Array("back") => backCommand(player)
                     case _ => false
                 }
-                case _ => false
+            case _ => false
         }
     }
 
-    private def handleTpaCommand(player: Player, targetName: String): Boolean = {
+    private def tpaCommand(player: Player, targetName: String): Boolean = {
         val target = Bukkit.getPlayer(targetName)
-        if (target != null) {
-            tpaRequests += (target -> player)
-            target.sendMessage(s"${player.getName} wants to teleport to you. Type /tpaccept to accept.")
-            player.sendMessage(s"Teleport request sent to ${target.getName}.")
-        } else {
+        if (target == null) {
             player.sendMessage(s"Player $targetName not found.")
+            false
+        }
+        tpaRequests += (target -> player)
+        target.sendMessage(s"${player.getName} wants to teleport to you.")
+        target.sendMessage(s"Type /tpaccept to accept or /tpdeny to deny.")
+        player.sendMessage(s"Teleport request sent to ${target.getName}.")
+        true
+    }
+
+    private def tpAcceptCommand(player: Player, requesterName: Option[String]): Boolean = {
+        requesterName match {
+            case Some(name) =>
+                val requester = Bukkit.getPlayer(name)
+                if (requester != null && tpaRequests.get(player).contains(requester)) {
+                    acceptRequest(player, requester)
+                } else {
+                    player.sendMessage(s"No teleport request from $name.")
+                }
+            case None =>
+                tpaRequests.get(player) match {
+                    case Some(requester) => acceptRequest(player, requester)
+                    case None => player.sendMessage("No teleport request pending.")
+                }
         }
         true
     }
 
-    private def handleTpRequest(player: Player, accept: Boolean): Boolean = {
+    private def acceptRequest(player: Player, requester: Player): Unit = {
+        playerLocations += (requester -> requester.getLocation)
+        requester.teleport(player)
+        requester.sendMessage(s"Teleported to ${player.getName}.")
+        player.sendMessage(s"${requester.getName} teleported to you.")
+        tpaRequests -= player
+    }
+
+    private def tpDenyCommand(player: Player): Boolean = {
         tpaRequests.get(player) match {
             case Some(requester) =>
-                if (accept) {
-                    playerLocations += (requester -> requester.getLocation)
-                    requester.teleport(player)
-                    requester.sendMessage(s"Teleported to ${player.getName}.")
-                    player.sendMessage(s"${requester.getName} teleported to you.")
-                } else {
-                    requester.sendMessage(s"Teleport request denied by ${player.getName}.")
-                    player.sendMessage(s"Teleport request denied.")
-                }
+                requester.sendMessage(s"Teleport request denied by ${player.getName}.")
+                player.sendMessage(s"Teleport request denied.")
                 tpaRequests -= player
             case None =>
                 player.sendMessage("No teleport request pending.")
@@ -63,23 +80,19 @@ class TpaPlugin extends JavaPlugin {
         true
     }
 
-    private def handleTpAcceptCommand(player: Player): Boolean = handleTpRequest(player, accept = true)
-
-    private def handleTpDenyCommand(player: Player): Boolean = handleTpRequest(player, accept = false)
-
-    private def handleTpAHereCommand(player: Player, targetName: String): Boolean = {
-        val target = Bukkit.getPlayer(targetName)
-        if (target != null) {
+    private def tpAHereCommand(player: Player, targetName: String): Boolean = {
+        Option(Bukkit.getPlayer(targetName)) match {
+          case Some(player) =>
             target.teleport(player)
             target.sendMessage(s"Teleported to ${player.getName}.")
             player.sendMessage(s"${target.getName} teleported to you.")
-        } else {
+          case None =>
             player.sendMessage(s"Player $targetName not found.")
         }
         true
     }
 
-    private def handleBackCommand(player: Player): Boolean = {
+    private def backCommand(player: Player): Boolean = {
         playerLocations.get(player) match {
             case Some(location) =>
                 player.teleport(location)
