@@ -1,6 +1,6 @@
 import Dependencies._
 
-ThisBuild / scalaVersion     := "2.13.12"
+ThisBuild / scalaVersion     := "3.3.4"
 ThisBuild / version          := "0.1.0-SNAPSHOT"
 ThisBuild / organization     := "org.winlogon"
 ThisBuild / organizationName := "winlogon"
@@ -11,7 +11,7 @@ ThisBuild / githubWorkflowJavaVersions += JavaSpec.temurin("21")
 ThisBuild / publishTo := None
 publish / skip := true
 
-crossScalaVersions := Seq("2.12.20", "2.13.15")
+crossScalaVersions := Seq("3.3.4")
 
 lazy val root = (project in file("."))
   .settings(
@@ -28,7 +28,7 @@ assembly / assemblyMergeStrategy := {
 assembly / mainClass := Some("org.winlogon.TpaPlugin")
 
 libraryDependencies ++= Seq(
-  "io.papermc.paper" % "paper-api" % "1.21.1-R0.1-SNAPSHOT"
+  "io.papermc.paper" % "paper-api" % "1.21.4-R0.1-SNAPSHOT"
 )
 
 resolvers += "papermc-repo" at "https://repo.papermc.io/repository/maven-public/"

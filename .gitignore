@@ -1,11 +1,6 @@
 # ---> Scala
 *.class
 *.log
-.bsp/
-.metals/
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
 
 # ---> SBT
 # Simple Build Tool
@@ -47,3 +42,9 @@ project/plugins/project/
 hs_err_pid*
 replay_pid*
 
+# Generated Metals (Scala Language Server) files
+# Reference: https://scalameta.org/metals/
+.bloop/
+.bsp/
+.metals/
+project/metals.sbt
