@@ -74,15 +74,21 @@ class TpaPlugin extends JavaPlugin {
   }
 
   private def tpAcceptCommand(player: Player, requesterName: Option[String]): Boolean = {
-    val requester = requesterName.flatMap(getPlayer).orElse(tpaRequests.get(player))
-    requester match {
-      case Some(r) =>
-        acceptRequest(player, r)
-        true
+    requesterName match {
+      case Some(name) =>
+        val requester = Bukkit.getPlayer(name)
+        if (requester != null && tpaRequests.get(player).contains(requester)) {
+          acceptRequest(player, requester)
+        } else {
+          player.sendMessage(s"No teleport request from $name.")
+        }
       case None =>
-        sendMessage(player, "§7No teleport request pending.")
-        false
+        tpaRequests.get(player) match {
+          case Some(requester) => acceptRequest(player, requester)
+          case None => player.sendMessage("No teleport request pending.")
+        }
     }
+    true
   }
 
   private def acceptRequest(player: Player, requester: Player): Unit = {
@@ -97,11 +103,10 @@ class TpaPlugin extends JavaPlugin {
         sendMessage(requester, s"§7Teleport request denied by §3${player.getName}.")
         sendMessage(player, "§7Teleport request denied.")
         tpaRequests.remove(player)
-        true
       case None =>
         sendMessage(player, "§7No teleport request pending.")
-        false
     }
+    true
   }
 
   private def tpAHereCommand(player: Player, targetName: String): Boolean = {
@@ -109,11 +114,10 @@ class TpaPlugin extends JavaPlugin {
       case Some(target) =>
         playerLocations.put(target, target.getLocation)
         teleportAsync(target, player.getLocation, s"Teleported to ${player.getName}.", s"${target.getName} teleported to you.")
-        true
       case None =>
         sendMessage(player, s"Player $targetName not found.")
-        false
     }
+    true
   }
 
   private def backCommand(player: Player): Boolean = {
