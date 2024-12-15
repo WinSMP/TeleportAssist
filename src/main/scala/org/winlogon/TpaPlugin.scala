@@ -26,7 +26,6 @@ class TpaPlugin extends JavaPlugin {
   }
 
   override def onCommand(sender: CommandSender, command: Command, label: String, args: Array[String]): Boolean = {
-    getLogger.info(s"§7onCommand called with label: $label and args: ${args.mkString(", ")}")
     if (!sender.isInstanceOf[Player]) return false
 
     val player = sender.asInstanceOf[Player]
