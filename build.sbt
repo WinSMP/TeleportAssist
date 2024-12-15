@@ -28,7 +28,7 @@ assembly / assemblyMergeStrategy := {
 assembly / mainClass := Some("org.winlogon.TpaPlugin")
 
 libraryDependencies ++= Seq(
-  "io.papermc.paper" % "paper-api" % "1.21.1-R0.1-SNAPSHOT",
+  "io.papermc.paper" % "paper-api" % "1.21.4-R0.1-SNAPSHOT",
 )
 
 resolvers += "papermc-repo" at "https://repo.papermc.io/repository/maven-public/"
