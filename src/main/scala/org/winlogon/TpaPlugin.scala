@@ -70,7 +70,7 @@ class TpaPlugin extends JavaPlugin {
       val regionScheduler = player.getServer.getRegionScheduler
       regionScheduler.execute(this, location, new Runnable { def run(): Unit = task() })
     } else {
-      Bukkit.getScheduler.runTask(this, new Runnable { def run(): Unit = task() })
+      Bukkit.getScheduler.runTaskAsynchronously(this, new Runnable { def run(): Unit = task() })
     }
   }
 
