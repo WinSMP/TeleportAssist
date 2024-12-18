@@ -1,0 +1,7 @@
+name: TpaPlugin
+version: '0.1.0-SNAPSHOT'
+main: 'org.winlogon.TpaPlugin'
+description: Simple, reasonable and conventional /tpa plugin.
+api-version: 1.21
+# bootstrapper: io.papermc.testplugin.TestPluginBootstrap
+# loader: io.papermc.testplugin.TestPluginLoader

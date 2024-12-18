@@ -1,6 +1,6 @@
 name: TpaPlugin
-version: "0.1.0"
-main: "org.winlogon.TpaPlugin"
+version: '0.1.0-SNAPSHOT'
+main: 'org.winlogon.TpaPlugin'
 api-version: 1.21
 folia-supported: true
 commands:
