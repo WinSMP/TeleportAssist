@@ -1,7 +1,6 @@
 package org.winlogon
 
-import io.papermc.paper.threadedregions.scheduler.RegionScheduler
-import io.papermc.paper.plugin.loader.PluginLoader
+import io.papermc.paper.threadedregions.scheduler.EntityScheduler
 import org.bukkit.{Bukkit, Location}
 import org.bukkit.command.{Command, CommandSender}
 import org.bukkit.entity.Player
@@ -12,17 +11,35 @@ import scala.collection.concurrent.TrieMap
 class TpaPlugin extends JavaPlugin {
   private val tpaRequests = TrieMap.empty[Player, Player]
   private val playerLocations = TrieMap.empty[Player, Location]
+  private val tpahereRequests = TrieMap.empty[Player, Player]
   private val errorMessages = List(
     "§7Usage: §3/tpa §2<player> §7or §3/tpaccept §2<player>",
     "§cUnknown or incomplete command. Usage: /tpa <player>, /tpaccept <player>, /tpdeny, /tpahere <player>, /back",
   )
+  private val messages = List(
+    "§7Type §3/tpaccept§7 to accept or §3/tpdeny§7 to deny.",
+    "§7No teleport request pending.",
+    "§7Teleport request §cdenied."
+  )
+
+  private var isFolia: Boolean = _
 
   override def onEnable(): Unit = {
-    getLogger.info("§7TpaPlugin started!")
+    isFolia = detectFolia()
+    getLogger.info(s"§7TpaPlugin started! Running on ${if (isFolia) "Folia" else "Paper"}")
   }
 
   override def onDisable(): Unit = {
     getLogger.info("§7TpaPlugin disabled!")
+  }
+
+  private def detectFolia(): Boolean = {
+    try {
+      Class.forName("io.papermc.paper.threadedregions.RegionizedServer")
+      true
+    } catch {
+      case _: ClassNotFoundException => false
+    }
   }
 
   override def onCommand(sender: CommandSender, command: Command, label: String, args: Array[String]): Boolean = {
@@ -31,7 +48,7 @@ class TpaPlugin extends JavaPlugin {
     val player = sender.asInstanceOf[Player]
 
     // Ensure there is at least one argument
-    if (args.isEmpty) {
+    if (args.isEmpty || args(0) == "help") {
       player.sendMessage(errorMessages(0))
       return false
     }
@@ -49,21 +66,43 @@ class TpaPlugin extends JavaPlugin {
   }
 
   private def executeTaskAsync(player: Player, location: Location, task: () => Unit): Unit = {
-    val world = location.getWorld
-    val chunkX = location.getChunk.getX
-    val chunkZ = location.getChunk.getZ
-  
-    val regionScheduler = player.getServer.getRegionScheduler
-    regionScheduler.execute(this, world, chunkX, chunkZ, () => {
-      task()
-    })
+    if (isFolia) {
+      val regionScheduler = player.getServer.getRegionScheduler
+      regionScheduler.execute(this, location, new Runnable { def run(): Unit = task() })
+    } else {
+      Bukkit.getScheduler.runTaskAsynchronously(this, new Runnable { def run(): Unit = task() })
+    }
+  }
+
+  private def teleportAsync(player: Player, location: Location, successMessage: String, notifyMessage: String): Unit = {
+    if (isFolia) {
+      val entityScheduler = player.getScheduler
+      entityScheduler.execute(this, new Runnable {
+        override def run(): Unit = {
+          player.teleportAsync(location).thenAccept(_ => {
+            if (successMessage.nonEmpty) player.sendMessage(successMessage)
+            if (notifyMessage.nonEmpty) player.sendMessage(notifyMessage)
+          })
+        }
+        }, new Runnable {
+          override def run(): Unit = {}
+        }, 0L)
+    } else {
+      Bukkit.getScheduler.runTask(this, new Runnable {
+        override def run(): Unit = {
+          player.teleport(location)
+          if (successMessage.nonEmpty) player.sendMessage(successMessage)
+          if (notifyMessage.nonEmpty) player.sendMessage(notifyMessage)
+        }
+      })
+    }
   }
 
   private def tpaCommand(player: Player, targetName: String): Boolean = {
     getPlayer(targetName) match {
       case Some(target) =>
         tpaRequests.put(target, player)
-        sendMessage(target, s"§3${player.getName}§7 wants to teleport to you.", "§7Type §3/tpaccept§7 to accept or §3/tpdeny§7 to deny.")
+        sendMessage(target, s"§3${player.getName}§7 wants to teleport to you.", messages(0))
         sendMessage(player, s"§7Teleport request sent to §3${target.getName}.")
         true
       case None =>
@@ -79,12 +118,12 @@ class TpaPlugin extends JavaPlugin {
         if (requester != null && tpaRequests.get(player).contains(requester)) {
           acceptRequest(player, requester)
         } else {
-          player.sendMessage(s"No teleport request from $name.")
+          player.sendMessage(s"§7No teleport request from §3$name§7.")
         }
       case None =>
         tpaRequests.get(player) match {
           case Some(requester) => acceptRequest(player, requester)
-          case None => player.sendMessage("No teleport request pending.")
+          case None => player.sendMessage(messages(1))
         }
     }
     true
@@ -99,11 +138,11 @@ class TpaPlugin extends JavaPlugin {
   private def tpDenyCommand(player: Player): Boolean = {
     tpaRequests.get(player) match {
       case Some(requester) =>
-        sendMessage(requester, s"§7Teleport request denied by §3${player.getName}.")
-        sendMessage(player, "§7Teleport request denied.")
+        sendMessage(requester, s"§7Teleport request §cdenied§7 by §3${player.getName}.")
+        sendMessage(player, messages(2))
         tpaRequests.remove(player)
       case None =>
-        sendMessage(player, "§7No teleport request pending.")
+        sendMessage(player, messages(1))
     }
     true
   }
@@ -111,12 +150,14 @@ class TpaPlugin extends JavaPlugin {
   private def tpAHereCommand(player: Player, targetName: String): Boolean = {
     getPlayer(targetName) match {
       case Some(target) =>
-        playerLocations.put(target, target.getLocation)
-        teleportAsync(target, player.getLocation, s"Teleported to ${player.getName}.", s"${target.getName} teleported to you.")
+        tpahereRequests.put(player, target)
+        sendMessage(target, s"§3${player.getName}§7 wants you to teleport to them.", "§7Type §3/tpaccept§7 to accept or §3/tpdeny§7 to deny.")
+        sendMessage(player, s"§7Teleport request sent to §3${target.getName}.")
+        true
       case None =>
-        sendMessage(player, s"Player $targetName not found.")
+        sendMessage(player, s"§7Player §3$targetName§7 not found.")
+        false
     }
-    true
   }
 
   private def backCommand(player: Player): Boolean = {
@@ -134,13 +175,4 @@ class TpaPlugin extends JavaPlugin {
   private def getPlayer(name: String): Option[Player] = Option(Bukkit.getPlayerExact(name)).filter(_.isOnline)
 
   private def sendMessage(player: Player, messages: String*): Unit = messages.foreach(player.sendMessage)
-
-  private def teleportAsync(player: Player, location: Location, successMessage: String, notifyMessage: String): Unit = {
-    executeTaskAsync(player, location, () => {
-      player.teleportAsync(location).thenAccept(_ => {
-        if (successMessage.nonEmpty) player.sendMessage(successMessage)
-        if (notifyMessage.nonEmpty) player.sendMessage(notifyMessage)
-      })
-    })
-  }
 }
