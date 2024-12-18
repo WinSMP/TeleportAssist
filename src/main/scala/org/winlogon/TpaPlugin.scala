@@ -48,7 +48,7 @@ class TpaPlugin extends JavaPlugin {
     val player = sender.asInstanceOf[Player]
 
     // Ensure there is at least one argument
-    if (args.isEmpty) {
+    if (args.isEmpty || args(0) == "help") {
       player.sendMessage(errorMessages(0))
       return false
     }
@@ -84,9 +84,9 @@ class TpaPlugin extends JavaPlugin {
             if (notifyMessage.nonEmpty) player.sendMessage(notifyMessage)
           })
         }
-      }, new Runnable {
-        override def run(): Unit = {}
-      }, 0L)
+        }, new Runnable {
+          override def run(): Unit = {}
+        }, 0L)
     } else {
       Bukkit.getScheduler.runTask(this, new Runnable {
         override def run(): Unit = {
