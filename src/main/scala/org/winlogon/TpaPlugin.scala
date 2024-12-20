@@ -12,8 +12,9 @@ class TpaPlugin extends JavaPlugin {
   var isFolia: Boolean = _
 
   override def onEnable(): Unit = {
-    isFolia = detectFolia()
-    getLogger.info(s"TpaPlugin started! Running on ${if (isFolia) "Folia" else "Paper"}")
+    isFolia = Utilities.detectFolia()
+    getLogger.info(s"TpaPlugin started!")
+    getLogger.info(s"This server is running on ${if (isFolia) "Folia" else "Paper"}")
 
     getCommand("tpa").setExecutor(tpaHandler)
     getCommand("tpaccept").setExecutor(tpaHandler)
@@ -25,14 +26,4 @@ class TpaPlugin extends JavaPlugin {
   override def onDisable(): Unit = {
     getLogger.info("TpaPlugin disabled!")
   }
-
-  private def detectFolia(): Boolean = {
-    try {
-      Class.forName("io.papermc.paper.threadedregions.RegionizedServer")
-      true
-    } catch {
-      case _: ClassNotFoundException => false
-    }
-  }
-
 }
