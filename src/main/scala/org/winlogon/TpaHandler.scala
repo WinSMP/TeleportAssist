@@ -11,10 +11,10 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
   private val errorMessages = Messages.errorMessages
   private val messages = Messages.messages
 
-  private val tpaRequests = TrieMap.empty[Player, Player]
+  private val tpaNormalRequests = TrieMap.empty[Player, Player]
+  private val tpaHereRequests = TrieMap.empty[Player, Player]
   private val playerLocations = TrieMap.empty[Player, Location]
-  private val tpahereRequests = TrieMap.empty[Player, Player]
-  val isFolia = tpaPlugin.isFolia
+  val isFolia = Utilities.detectFolia()
 
   override def onCommand(sender: CommandSender, command: Command, label: String, args: Array[String]): Boolean = {
     if (!sender.isInstanceOf[Player]) return false
@@ -59,35 +59,29 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
     */
   private def teleportAsync(player: Player, location: Location, successMessage: String, notifyMessage: String): Unit = {
     if (isFolia) {
-      val teleportTask = new Runnable {
+      val entityScheduler = player.getScheduler
+      entityScheduler.execute(tpaPlugin, new Runnable {
         override def run(): Unit = {
           player.teleportAsync(location).thenAccept(_ => {
             if (successMessage.nonEmpty) player.sendMessage(successMessage)
             if (notifyMessage.nonEmpty) player.sendMessage(notifyMessage)
           })
         }
-      }
-  
-      val emptyTask = new Runnable {
+      }, new Runnable {
         override def run(): Unit = {}
-      }
-  
-      val entityScheduler = player.getScheduler
-      entityScheduler.execute(tpaPlugin, teleportTask, emptyTask, 0L)
+      }, 0L)
     } else {
-      val syncTeleportTask = new Runnable {
+      Bukkit.getScheduler.runTaskAsynchronously(tpaPlugin, new Runnable {
         override def run(): Unit = {
           player.teleport(location)
           if (successMessage.nonEmpty) player.sendMessage(successMessage)
           if (notifyMessage.nonEmpty) player.sendMessage(notifyMessage)
         }
-      }
-      Bukkit.getScheduler.runTaskAsynchronously(tpaPlugin, syncTeleportTask)
+      })
     }
   }
 
-  /**
-    * Send a teleport request to a player
+  /** Send a teleport request to a player
     *
     * @param player The requester player
     * @param targetName The target player who will receive the request
@@ -96,7 +90,7 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
   private def tpaCommand(player: Player, targetName: String): Boolean = {
     getPlayer(targetName) match {
       case Some(target) =>
-        tpaRequests.put(target, player)
+        tpaNormalRequests.put(target, player)
         sendMessage(target, s"§3${player.getName}§7 wants to teleport to you.", messages(0))
         sendMessage(player, s"§7Teleport request sent to §3${target.getName}.")
         true
@@ -117,14 +111,17 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
     requesterName match {
       case Some(name) =>
         val requester = Bukkit.getPlayer(name)
-        if (requester != null && tpaRequests.get(player).contains(requester)) {
-          acceptRequest(player, requester)
-        } else {
-          player.sendMessage(s"§7No teleport request from §3$name§7.")
+        requester match {
+          case p: Player if tpaNormalRequests.get(p).contains(player) =>
+            acceptRequest(player, p, TeleportType.Normal)
+          case p: Player if tpaHereRequests.get(player).contains(p) =>
+            acceptRequest(player, p, TeleportType.Here)
+          case _ =>
+            player.sendMessage(s"§7No teleport request from §3$name§7.")
         }
       case None =>
-        tpaRequests.get(player) match {
-          case Some(requester) => acceptRequest(player, requester)
+        tpaNormalRequests.find(_._2 == player).orElse(tpaHereRequests.find(_._1 == player)) match {
+          case Some((requester, _)) => acceptRequest(player, requester, TeleportType.Normal)
           case None => player.sendMessage(messages(1))
         }
     }
@@ -136,11 +133,18 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
     *
     * @param player The player accepting the request
     * @param requester The player who sent the request
+    * @param tpType The teleport type (Normal/Here)
     */
-  private def acceptRequest(player: Player, requester: Player): Unit = {
+  private def acceptRequest(player: Player, requester: Player, tpType: TeleportType): Unit = {
     playerLocations.put(requester, requester.getLocation)
-    teleportAsync(requester, player.getLocation, s"§7Teleported to §3${player.getName}.", s"§3${requester.getName} §7teleported to you.")
-    tpaRequests.remove(player)
+    tpType match {
+      case TeleportType.Normal =>
+        teleportAsync(requester, player.getLocation, s"§7Teleported to §3${player.getName}.", s"§3${requester.getName} §7teleported to you.")
+      case TeleportType.Here =>
+        teleportAsync(player, requester.getLocation, s"§7Teleported to §3${requester.getName}.", s"§3${player.getName} §7teleported to you.")
+    }
+    tpaNormalRequests.remove(requester)
+    tpaHereRequests.remove(player)
   }
 
   /**
@@ -150,11 +154,12 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
     * @return
     */
   private def tpDenyCommand(player: Player): Boolean = {
-    tpaRequests.get(player) match {
-      case Some(requester) =>
+    tpaNormalRequests.find(_._2 == player).orElse(tpaHereRequests.find(_._1 == player)) match {
+      case Some((requester, _)) =>
         sendMessage(requester, s"§7Teleport request §cdenied§7 by §3${player.getName}.")
         sendMessage(player, messages(2))
-        tpaRequests.remove(player)
+        tpaNormalRequests.remove(requester)
+        tpaHereRequests.remove(player)
       case None =>
         sendMessage(player, messages(1))
     }
@@ -171,7 +176,7 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
   private def tpAHereCommand(player: Player, targetName: String): Boolean = {
     getPlayer(targetName) match {
       case Some(target) =>
-        tpahereRequests.put(player, target)
+        tpaHereRequests.put(player, target)
         sendMessage(target, s"§3${player.getName}§7 wants you to teleport to them.", "§7Type §3/tpaccept§7 to accept or §3/tpdeny§7 to deny.")
         sendMessage(player, s"§7Teleport request sent to §3${target.getName}.")
         true
@@ -203,4 +208,10 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
   private def getPlayer(name: String): Option[Player] = Option(Bukkit.getPlayerExact(name)).filter(_.isOnline)
 
   private def sendMessage(player: Player, messages: String*): Unit = messages.foreach(player.sendMessage)
+
+  sealed trait TeleportType
+  object TeleportType {
+    case object Normal extends TeleportType
+    case object Here extends TeleportType
+  }
 }
