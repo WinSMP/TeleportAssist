@@ -112,17 +112,23 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
       case Some(name) =>
         val requester = Bukkit.getPlayer(name)
         requester match {
-          case p: Player if tpaNormalRequests.get(p).contains(player) =>
+          case p: Player if tpaNormalRequests.get(player).contains(p) =>
             acceptRequest(player, p, TeleportType.Normal)
-          case p: Player if tpaHereRequests.get(player).contains(p) =>
+          case p: Player if tpaHereRequests.get(p).contains(player) =>
             acceptRequest(player, p, TeleportType.Here)
           case _ =>
             player.sendMessage(s"§7No teleport request from §3$name§7.")
+            return false
         }
       case None =>
-        tpaNormalRequests.find(_._2 == player).orElse(tpaHereRequests.find(_._1 == player)) match {
-          case Some((requester, _)) => acceptRequest(player, requester, TeleportType.Normal)
-          case None => player.sendMessage(messages(1))
+        // Try to find a pending request
+        tpaNormalRequests.find(_._1 == player).orElse(tpaHereRequests.find(_._2 == player)) match {
+          case Some((requester, _)) =>
+            val tpType = if (tpaNormalRequests.contains(player)) TeleportType.Normal else TeleportType.Here
+            acceptRequest(player, requester, tpType)
+          case None =>
+            player.sendMessage(messages(1))
+            return false
         }
     }
     true
