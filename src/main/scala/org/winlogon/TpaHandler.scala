@@ -22,17 +22,18 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
     val player = sender.asInstanceOf[Player]
 
     // Ensure there is at least one argument
-    if (args.isEmpty || args(0) == "help") {
+    if (args.isEmpty || args(0) == "help" && label != "back") {
       player.sendMessage(errorMessages(0))
       return false
     }
 
     label match {
-      case "tpa" if args.length == 1 => tpaCommand(player, args(0))  // tpa <player>
-      case "tpaccept" if args.length == 1 => tpAcceptCommand(player, Some(args(0)))  // tpaccept <player>
-      case "tpdeny" => tpDenyCommand(player)
-      case "tpahere" if args.length == 1 => tpAHereCommand(player, args(0))  // tpahere <player>
-      case "back" => backCommand(player)
+      case "tpa" if args.length == 1        => tpaCommand(player, args(0))
+      case "tpaccept" if args.length == 1   => tpAcceptCommand(player, Some(args(0)))
+      case "tpdeny"                         => tpDenyCommand(player)
+      case "tpahere"if args.length == 1     => tpAHereCommand(player, args(0))
+      case "back"                           => backCommand(player)
+      case "tpcancel"                       => tpcancelCommand(player)
       case _ =>
         player.sendMessage(errorMessages(1))
         false
@@ -87,9 +88,15 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
     * @param targetName The target player who will receive the request
     * @return
     */
-  private def tpaCommand(player: Player, targetName: String): Boolean = {
+   private def tpaCommand(player: Player, targetName: String): Boolean = {
     getPlayer(targetName) match {
       case Some(target) =>
+        // Check for existing requests
+        if (tpaNormalRequests.get(target).contains(player) || tpaHereRequests.get(player).contains(target)) {
+          sendMessage(player, s"§7You already have a pending request to §3${target.getName}§7.")
+          return false
+        }
+        
         tpaNormalRequests.put(target, player)
         sendMessage(target, s"§3${player.getName}§7 wants to teleport to you.", messages(0))
         sendMessage(player, s"§7Teleport request sent to §3${target.getName}.")
@@ -107,7 +114,7 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
     * @param requesterName The player who sent the request
     * @return
     */
-  private def tpAcceptCommand(player: Player, requesterName: Option[String]): Boolean = {
+   private def tpAcceptCommand(player: Player, requesterName: Option[String]): Boolean = {
     requesterName match {
       case Some(name) =>
         val requester = Bukkit.getPlayer(name)
@@ -121,7 +128,6 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
             return false
         }
       case None =>
-        // Try to find a pending request
         tpaNormalRequests.find(_._1 == player).orElse(tpaHereRequests.find(_._2 == player)) match {
           case Some((requester, _)) =>
             val tpType = if (tpaNormalRequests.contains(player)) TeleportType.Normal else TeleportType.Here
@@ -141,17 +147,18 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
     * @param requester The player who sent the request
     * @param tpType The teleport type (Normal/Here)
     */
-  private def acceptRequest(player: Player, requester: Player, tpType: TeleportType): Unit = {
+   private def acceptRequest(player: Player, requester: Player, tpType: TeleportType): Unit = {
     playerLocations.put(requester, requester.getLocation)
     tpType match {
       case TeleportType.Normal =>
-        teleportAsync(requester, player.getLocation, s"§7Teleported to §3${player.getName}.", s"§3${requester.getName} §7teleported to you.")
+        teleportAsync(requester, player.getLocation,s"§7Teleported to §3${player.getName}.", s"§3${requester.getName} §7teleported to you.")
+        tpaNormalRequests.remove(player) // Remove by target (player)
       case TeleportType.Here =>
-        teleportAsync(player, requester.getLocation, s"§7Teleported to §3${requester.getName}.", s"§3${player.getName} §7teleported to you.")
+        teleportAsync(player, requester.getLocation, s"§3${player.getName} §7teleported to you.", s"§7Teleported to §3${requester.getName}.")
+        tpaHereRequests.remove(requester) // Remove by requester
     }
-    tpaNormalRequests.remove(requester)
-    tpaHereRequests.remove(player)
   }
+
 
   /**
     * Deny a teleport request
@@ -182,6 +189,12 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
   private def tpAHereCommand(player: Player, targetName: String): Boolean = {
     getPlayer(targetName) match {
       case Some(target) =>
+        // Check for existing requests
+        if (tpaNormalRequests.get(target).contains(player) || tpaHereRequests.get(player).contains(target)) {
+          sendMessage(player, s"§7You already have a pending request to §3${target.getName}§7.")
+          return false
+        }
+        
         tpaHereRequests.put(player, target)
         sendMessage(target, s"§3${player.getName}§7 wants you to teleport to them.", "§7Type §3/tpaccept§7 to accept or §3/tpdeny§7 to deny.")
         sendMessage(player, s"§7Teleport request sent to §3${target.getName}.")
@@ -190,6 +203,23 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
         sendMessage(player, s"§7Player §3$targetName§7 not found.")
         false
     }
+  }
+
+  private def tpCancelCommand(player: Player): Boolean = {
+    // Cancel outgoing TPA requests (where player is requester)
+    val normalCancelled = tpaNormalRequests.filter { case (_, r) => r == player }.keys.toList
+    normalCancelled.foreach(tpaNormalRequests.remove)
+
+    // Cancel outgoing TPAHere requests (where player is requester)
+    val hereCancelled = tpaHereRequests.filter { case (r, _) => r == player }.keys.toList
+    hereCancelled.foreach(tpaHereRequests.remove)
+
+    if (normalCancelled.nonEmpty || hereCancelled.nonEmpty) {
+      sendMessage(player, "§7All your teleport requests have been cancelled.")
+    } else {
+      sendMessage(player, "§7You have no pending teleport requests to cancel.")
+    }
+    true
   }
 
   /**
