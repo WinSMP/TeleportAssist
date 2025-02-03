@@ -6,12 +6,19 @@ description: 'Normal, reasonable and simple /tpa plugin.'
 folia-supported: true
 commands:
   tpa:
+    usage: /<command> <player>
     description: "Teleport to a player"
   tpaccept:
+    usage: /<command> <player>
     description: "Accept the teleport request"
   tpdeny:
+    usage: /<command>
     description: "Deny the teleport request"
   tpahere:
     description: "Teleport a player to you"
+  tpcancel:
+    usage: /<command> <player>
+    description: "Cancel requests sent to any player"
   back:
+    usage: /<command>
     description: "Teleport you back to the last place you were"
