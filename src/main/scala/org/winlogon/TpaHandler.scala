@@ -20,20 +20,21 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
     if (!sender.isInstanceOf[Player]) return false
 
     val player = sender.asInstanceOf[Player]
+    val standaloneCommands = List("back", "tpdeny", "tpcancel")
 
     // Ensure there is at least one argument
-    if (args.isEmpty || args(0) == "help" && label != "back") {
+    if (args.isEmpty || args(0) == "help" && !standaloneCommands.contains(label)) {
       player.sendMessage(errorMessages(0))
       return false
     }
 
     label match {
-      case "tpa" if args.length == 1        => tpaCommand(player, args(0))
-      case "tpaccept" if args.length == 1   => tpAcceptCommand(player, Some(args(0)))
+      case "back"                            => backCommand(player)
+      case "tpdeny"                          => tpDenyCommand(player)
+      case "tpcancel"                        => tpCancelCommand(player)
+      case "tpa" if args.length == 1         => tpaCommand(player, args(0))
+      case "tpaccept" if args.length == 1    => tpAcceptCommand(player, Some(args(0)))
       case "tpahere" if args.length == 1     => tpAHereCommand(player, args(0))
-      case "tpdeny"                         => tpDenyCommand(player)
-      case "back"                           => backCommand(player)
-      case "tpcancel"                       => tpCancelCommand(player)
       case _ =>
         player.sendMessage(errorMessages(1))
         false
@@ -231,11 +232,11 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
   private def backCommand(player: Player): Boolean = {
     playerLocations.get(player) match {
       case Some(location) =>
-        teleportAsync(player, location, "Teleported back to previous location.", "")
+        teleportAsync(player, location, "§7Teleported back to previous location.", "")
         playerLocations.remove(player)
         true
       case None =>
-        sendMessage(player, "No previous location to teleport back to.")
+        sendMessage(player, "§7No previous location to teleport back to.")
         true
     }
   }
