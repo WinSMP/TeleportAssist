@@ -30,10 +30,10 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
     label match {
       case "tpa" if args.length == 1        => tpaCommand(player, args(0))
       case "tpaccept" if args.length == 1   => tpAcceptCommand(player, Some(args(0)))
+      case "tpahere" if args.length == 1     => tpAHereCommand(player, args(0))
       case "tpdeny"                         => tpDenyCommand(player)
-      case "tpahere"if args.length == 1     => tpAHereCommand(player, args(0))
       case "back"                           => backCommand(player)
-      case "tpcancel"                       => tpcancelCommand(player)
+      case "tpcancel"                       => tpCancelCommand(player)
       case _ =>
         player.sendMessage(errorMessages(1))
         false
@@ -94,7 +94,7 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
         // Check for existing requests
         if (tpaNormalRequests.get(target).contains(player) || tpaHereRequests.get(player).contains(target)) {
           sendMessage(player, s"§7You already have a pending request to §3${target.getName}§7.")
-          return false
+          return true
         }
         
         tpaNormalRequests.put(target, player)
@@ -103,7 +103,7 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
         true
       case None =>
         sendMessage(player, s"§7Player §3$targetName§7 not found.")
-        false
+        true
     }
   }
 
@@ -125,7 +125,7 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
             acceptRequest(player, p, TeleportType.Here)
           case _ =>
             player.sendMessage(s"§7No teleport request from §3$name§7.")
-            return false
+            return true
         }
       case None =>
         tpaNormalRequests.find(_._1 == player).orElse(tpaHereRequests.find(_._2 == player)) match {
@@ -134,7 +134,7 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
             acceptRequest(player, requester, tpType)
           case None =>
             player.sendMessage(messages(1))
-            return false
+            return true
         }
     }
     true
@@ -158,7 +158,6 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
         tpaHereRequests.remove(requester) // Remove by requester
     }
   }
-
 
   /**
     * Deny a teleport request
@@ -192,7 +191,7 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
         // Check for existing requests
         if (tpaNormalRequests.get(target).contains(player) || tpaHereRequests.get(player).contains(target)) {
           sendMessage(player, s"§7You already have a pending request to §3${target.getName}§7.")
-          return false
+          return true
         }
         
         tpaHereRequests.put(player, target)
@@ -201,7 +200,7 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
         true
       case None =>
         sendMessage(player, s"§7Player §3$targetName§7 not found.")
-        false
+        true
     }
   }
 
@@ -237,7 +236,7 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
         true
       case None =>
         sendMessage(player, "No previous location to teleport back to.")
-        false
+        true
     }
   }
 

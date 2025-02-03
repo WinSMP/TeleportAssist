@@ -11,13 +11,14 @@ commands:
   tpaccept:
     usage: /<command> <player>
     description: "Accept the teleport request"
+  tpahere:
+    usage: /<command> <player>
+    description: "Teleport a player to you"
   tpdeny:
     usage: /<command>
     description: "Deny the teleport request"
-  tpahere:
-    description: "Teleport a player to you"
   tpcancel:
-    usage: /<command> <player>
+    usage: /<command>
     description: "Cancel requests sent to any player"
   back:
     usage: /<command>
