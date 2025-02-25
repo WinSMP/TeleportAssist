@@ -1,13 +1,15 @@
 package org.winlogon
 
-import org.bukkit.command.{Command, CommandSender, CommandExecutor}
+import dev.jorel.commandapi.CommandAPICommand
+import dev.jorel.commandapi.arguments.PlayerArgument
+import dev.jorel.commandapi.executors.PlayerCommandExecutor
 import org.bukkit.{Bukkit, Location}
 import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
 
 import scala.collection.concurrent.TrieMap
 
-class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
+class TpaHandler(tpaPlugin: TpaPlugin) {
   private val errorMessages = Messages.errorMessages
   private val messages = Messages.messages
 
@@ -16,27 +18,50 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
   private val playerLocations = TrieMap.empty[Player, Location]
   val isFolia = Utilities.detectFolia()
 
-  override def onCommand(sender: CommandSender, command: Command, label: String, args: Array[String]): Boolean = {
-    if (!sender.isInstanceOf[Player]) return false
+  /**
+   * Register all teleport-related commands using CommandAPI
+   */
+  def registerCommands(): Unit = {
+    // /tpa <player>
+    new CommandAPICommand("tpa")
+      .withArguments(new PlayerArgument("target"))
+      .executesPlayer((player, args) => {
+        val target = args.get("target").asInstanceOf[Player]
+        tpaCommand(player, target)
+      })
+      .register()
 
-    val player = sender.asInstanceOf[Player]
+    // /tpaccept [player]
+    new CommandAPICommand("tpaccept")
+      .withOptionalArguments(new PlayerArgument("player"))
+      .executesPlayer((player, args) => {
+        val targetOption = Option(args.getOrDefault("player", null).asInstanceOf[Player])
+        tpAcceptCommand(player, targetOption.map(_.getName))
+      })
+      .register()
 
-    // Ensure there is at least one argument
-    if (args.isEmpty || args(0) == "help") {
-      player.sendMessage(errorMessages(0))
-      return false
-    }
+    // /tpdeny
+    new CommandAPICommand("tpdeny")
+      .executesPlayer((player, _) => {
+        tpDenyCommand(player)
+      })
+      .register()
 
-    label match {
-      case "tpa" if args.length == 1 => tpaCommand(player, args(0))  // tpa <player>
-      case "tpaccept" if args.length == 1 => tpAcceptCommand(player, Some(args(0)))  // tpaccept <player>
-      case "tpdeny" => tpDenyCommand(player)
-      case "tpahere" if args.length == 1 => tpAHereCommand(player, args(0))  // tpahere <player>
-      case "back" => backCommand(player)
-      case _ =>
-        player.sendMessage(errorMessages(1))
-        false
-    }
+    // /tpahere <player>
+    new CommandAPICommand("tpahere")
+      .withArguments(new PlayerArgument("target"))
+      .executesPlayer((player, args) => {
+        val target = args.get("target").asInstanceOf[Player]
+        tpAHereCommand(player, target)
+      })
+      .register()
+
+    // /back
+    new CommandAPICommand("back")
+      .executesPlayer((player, _) => {
+        backCommand(player)
+      })
+      .register()
   }
 
   private def executeTaskAsync(player: Player, location: Location, task: () => Unit): Unit = {
@@ -84,19 +109,18 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
   /** Send a teleport request to a player
     *
     * @param player The requester player
-    * @param targetName The target player who will receive the request
+    * @param target The target player who will receive the request
     * @return
     */
-  private def tpaCommand(player: Player, targetName: String): Boolean = {
-    getPlayer(targetName) match {
-      case Some(target) =>
-        tpaNormalRequests.put(target, player)
-        sendMessage(target, s"§3${player.getName}§7 wants to teleport to you.", messages(0))
-        sendMessage(player, s"§7Teleport request sent to §3${target.getName}.")
-        true
-      case None =>
-        sendMessage(player, s"§7Player §3$targetName§7 not found.")
-        false
+  private def tpaCommand(player: Player, target: Player): Boolean = {
+    if (target != null && target.isOnline) {
+      tpaNormalRequests.put(target, player)
+      sendMessage(target, s"§3${player.getName}§7 wants to teleport to you.", messages(0))
+      sendMessage(player, s"§7Teleport request sent to §3${target.getName}.")
+      return true
+    } else {
+      sendMessage(player, s"§7Player not found.")
+      return false
     }
   }
 
@@ -176,19 +200,18 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
     * Teleport a player to you
     *
     * @param player The requester player
-    * @param targetName The target player
+    * @param target The target player
     * @return
     */
-  private def tpAHereCommand(player: Player, targetName: String): Boolean = {
-    getPlayer(targetName) match {
-      case Some(target) =>
-        tpaHereRequests.put(player, target)
-        sendMessage(target, s"§3${player.getName}§7 wants you to teleport to them.", "§7Type §3/tpaccept§7 to accept or §3/tpdeny§7 to deny.")
-        sendMessage(player, s"§7Teleport request sent to §3${target.getName}.")
-        true
-      case None =>
-        sendMessage(player, s"§7Player §3$targetName§7 not found.")
-        false
+  private def tpAHereCommand(player: Player, target: Player): Boolean = {
+    if (target != null && target.isOnline) {
+      tpaHereRequests.put(player, target)
+      sendMessage(target, s"§3${player.getName}§7 wants you to teleport to them.", "§7Type §3/tpaccept§7 to accept or §3/tpdeny§7 to deny.")
+      sendMessage(player, s"§7Teleport request sent to §3${target.getName}.")
+      return true
+    } else {
+      sendMessage(player, s"§7Player not found.")
+      return false
     }
   }
 
@@ -210,8 +233,6 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
         false
     }
   }
-
-  private def getPlayer(name: String): Option[Player] = Option(Bukkit.getPlayerExact(name)).filter(_.isOnline)
 
   private def sendMessage(player: Player, messages: String*): Unit = messages.foreach(player.sendMessage)
 

@@ -1,14 +1,13 @@
 package org.winlogon
 
-import org.bukkit.Bukkit
-import org.bukkit.command.{Command, CommandSender}
+import dev.jorel.commandapi.CommandAPI
 import org.bukkit.plugin.java.JavaPlugin
 
 class TpaPlugin extends JavaPlugin {
   private val errorMessages = Messages.errorMessages
   private val messages = Messages.messages
 
-  val tpaHandler = new TpaHandler(this)
+  private val tpaHandler = new TpaHandler(this)
   var isFolia: Boolean = _
 
   override def onEnable(): Unit = {
@@ -16,11 +15,8 @@ class TpaPlugin extends JavaPlugin {
     getLogger.info(s"TpaPlugin started!")
     getLogger.info(s"This server is running on ${if (isFolia) "Folia" else "Paper"}")
 
-    getCommand("tpa").setExecutor(tpaHandler)
-    getCommand("tpaccept").setExecutor(tpaHandler)
-    getCommand("tpdeny").setExecutor(tpaHandler)
-    getCommand("tpahere").setExecutor(tpaHandler)
-    getCommand("back").setExecutor(tpaHandler)
+    // Register CommandAPI commands
+    tpaHandler.registerCommands()
   }
 
   override def onDisable(): Unit = {
