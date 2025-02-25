@@ -1,4 +1,4 @@
-package org.winlogon
+package org.winlogon.teleportassist
 
 /**
   * A collection of utility functions which may be useful

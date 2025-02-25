@@ -1,0 +1,12 @@
+name: TeleportAssist
+version: '0.1.0-SNAPSHOT'
+main: 'org.winlogon.teleportassist.TeleportAssist'
+api-version: 1.21
+description: 'Intuitive, good-looking, and simple /tpa plugin.'
+folia-supported: true
+dependencies:
+  server:
+    CommandAPI:
+      load: BEFORE
+      required: true
+      join-classpath: true
