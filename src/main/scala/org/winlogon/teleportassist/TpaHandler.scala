@@ -1,4 +1,4 @@
-package org.winlogon
+package org.winlogon.teleportassist
 
 import dev.jorel.commandapi.CommandAPICommand
 import dev.jorel.commandapi.arguments.PlayerArgument

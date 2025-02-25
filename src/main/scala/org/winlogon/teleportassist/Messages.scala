@@ -1,4 +1,4 @@
-package org.winlogon
+package org.winlogon.teleportassist
 
 object Messages {
   val errorMessages = List(
