@@ -8,6 +8,7 @@ import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
 
 import scala.collection.concurrent.TrieMap
+import java.util.function.Supplier
 
 class TpaHandler(tpaPlugin: TeleportAssist) {
   private val errorMessages = Messages.errorMessages
@@ -38,7 +39,12 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
       .withOptionalArguments(new PlayerArgument("player"))
       .executesPlayer(new PlayerCommandExecutor {
         override def run(player: Player, args: CommandArguments): Unit = {
-          val targetOption = Option(args.getOrDefault("player", null).asInstanceOf[Player])
+          // Fix: Use a proper Supplier instead of null
+          val targetOption = try {
+            Option(args.get("player").asInstanceOf[Player])
+          } catch {
+            case _: Exception => None
+          }
           tpAcceptCommand(player, targetOption.map(_.getName))
         }
       })
@@ -124,6 +130,12 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
     */
   private def tpaCommand(player: Player, target: Player): Boolean = {
     if (target != null && target.isOnline) {
+      // Prevent self-teleport requests
+      if (player == target) {
+        sendMessage(player, "§7You cannot teleport to yourself.")
+        return false
+      }
+
       tpaNormalRequests.put(target, player)
       sendMessage(target, s"§3${player.getName}§7 wants to teleport to you.", messages(0))
       sendMessage(player, s"§7Teleport request sent to §3${target.getName}.")
@@ -145,27 +157,39 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
     requesterName match {
       case Some(name) =>
         val requester = Bukkit.getPlayer(name)
-        requester match {
-          case p: Player if tpaNormalRequests.get(player).contains(p) =>
-            acceptRequest(player, p, TeleportType.Normal)
-          case p: Player if tpaHereRequests.get(p).contains(player) =>
-            acceptRequest(player, p, TeleportType.Here)
-          case _ =>
+        if (requester != null && requester.isOnline) {
+          if (tpaNormalRequests.get(player).contains(requester)) {
+            acceptRequest(player, requester, TeleportType.Normal)
+            return true
+          } else if (tpaHereRequests.get(requester).contains(player)) {
+            acceptRequest(player, requester, TeleportType.Here)
+            return true
+          } else {
             player.sendMessage(s"§7No teleport request from §3$name§7.")
             return false
+          }
+        } else {
+          player.sendMessage(s"§7Player §3$name§7 is not online.")
+          return false
         }
       case None =>
         // Try to find a pending request
-        tpaNormalRequests.find(_._1 == player).orElse(tpaHereRequests.find(_._2 == player)) match {
-          case Some((requester, _)) =>
-            val tpType = if (tpaNormalRequests.contains(player)) TeleportType.Normal else TeleportType.Here
-            acceptRequest(player, requester, tpType)
+        tpaNormalRequests.find(_._1 == player) match {
+          case Some((_, requester)) =>
+            acceptRequest(player, requester, TeleportType.Normal)
+            return true
           case None =>
-            player.sendMessage(messages(1))
-            return false
+            // Check tpaHere requests
+            tpaHereRequests.find(_._2 == player) match {
+              case Some((requester, _)) =>
+                acceptRequest(player, requester, TeleportType.Here)
+                return true
+              case None =>
+                player.sendMessage(messages(1))
+                return false
+            }
         }
     }
-    true
   }
 
   /**
@@ -179,12 +203,12 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
     playerLocations.put(requester, requester.getLocation)
     tpType match {
       case TeleportType.Normal =>
+        tpaNormalRequests.remove(player)
         teleportAsync(requester, player.getLocation, s"§7Teleported to §3${player.getName}.", s"§3${requester.getName} §7teleported to you.")
       case TeleportType.Here =>
+        tpaHereRequests.remove(requester)
         teleportAsync(player, requester.getLocation, s"§7Teleported to §3${requester.getName}.", s"§3${player.getName} §7teleported to you.")
     }
-    tpaNormalRequests.remove(requester)
-    tpaHereRequests.remove(player)
   }
 
   /**
@@ -194,16 +218,24 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
     * @return
     */
   private def tpDenyCommand(player: Player): Boolean = {
-    tpaNormalRequests.find(_._2 == player).orElse(tpaHereRequests.find(_._1 == player)) match {
-      case Some((requester, _)) =>
+    tpaNormalRequests.find(_._1 == player) match {
+      case Some((_, requester)) =>
         sendMessage(requester, s"§7Teleport request §cdenied§7 by §3${player.getName}.")
         sendMessage(player, messages(2))
-        tpaNormalRequests.remove(requester)
-        tpaHereRequests.remove(player)
-      case None =>
-        sendMessage(player, messages(1))
+        tpaNormalRequests.remove(player)
+        return true
+      case None => 
+        tpaHereRequests.find(_._2 == player) match {
+          case Some((requester, _)) =>
+            sendMessage(requester, s"§7Teleport request §cdenied§7 by §3${player.getName}.")
+            sendMessage(player, messages(2))
+            tpaHereRequests.remove(requester)
+            return true
+          case None =>
+            sendMessage(player, messages(1))
+            return false
+        }
     }
-    true
   }
 
   /**
@@ -215,6 +247,12 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
     */
   private def tpAHereCommand(player: Player, target: Player): Boolean = {
     if (target != null && target.isOnline) {
+      // Prevent self-teleport requests
+      if (player == target) {
+        sendMessage(player, "§7You cannot teleport yourself to yourself.")
+        return false
+      }
+
       tpaHereRequests.put(player, target)
       sendMessage(target, s"§3${player.getName}§7 wants you to teleport to them.", "§7Type §3/tpaccept§7 to accept or §3/tpdeny§7 to deny.")
       sendMessage(player, s"§7Teleport request sent to §3${target.getName}.")
