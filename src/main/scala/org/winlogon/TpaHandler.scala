@@ -20,19 +20,21 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
     if (!sender.isInstanceOf[Player]) return false
 
     val player = sender.asInstanceOf[Player]
+    val standaloneCommands = List("back", "tpdeny", "tpcancel")
 
     // Ensure there is at least one argument
-    if (args.isEmpty || args(0) == "help") {
+    if (args.isEmpty || args(0) == "help" && !standaloneCommands.contains(label)) {
       player.sendMessage(errorMessages(0))
       return false
     }
 
     label match {
-      case "tpa" if args.length == 1 => tpaCommand(player, args(0))  // tpa <player>
-      case "tpaccept" if args.length == 1 => tpAcceptCommand(player, Some(args(0)))  // tpaccept <player>
-      case "tpdeny" => tpDenyCommand(player)
-      case "tpahere" if args.length == 1 => tpAHereCommand(player, args(0))  // tpahere <player>
-      case "back" => backCommand(player)
+      case "back"                            => backCommand(player)
+      case "tpdeny"                          => tpDenyCommand(player)
+      case "tpcancel"                        => tpCancelCommand(player)
+      case "tpa" if args.length == 1         => tpaCommand(player, args(0))
+      case "tpaccept" if args.length == 1    => tpAcceptCommand(player, Some(args(0)))
+      case "tpahere" if args.length == 1     => tpAHereCommand(player, args(0))
       case _ =>
         player.sendMessage(errorMessages(1))
         false
@@ -87,16 +89,22 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
     * @param targetName The target player who will receive the request
     * @return
     */
-  private def tpaCommand(player: Player, targetName: String): Boolean = {
+   private def tpaCommand(player: Player, targetName: String): Boolean = {
     getPlayer(targetName) match {
       case Some(target) =>
+        // Check for existing requests
+        if (tpaNormalRequests.get(target).contains(player) || tpaHereRequests.get(player).contains(target)) {
+          sendMessage(player, s"§7You already have a pending request to §3${target.getName}§7.")
+          return true
+        }
+        
         tpaNormalRequests.put(target, player)
         sendMessage(target, s"§3${player.getName}§7 wants to teleport to you.", messages(0))
         sendMessage(player, s"§7Teleport request sent to §3${target.getName}.")
         true
       case None =>
         sendMessage(player, s"§7Player §3$targetName§7 not found.")
-        false
+        true
     }
   }
 
@@ -107,7 +115,7 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
     * @param requesterName The player who sent the request
     * @return
     */
-  private def tpAcceptCommand(player: Player, requesterName: Option[String]): Boolean = {
+   private def tpAcceptCommand(player: Player, requesterName: Option[String]): Boolean = {
     requesterName match {
       case Some(name) =>
         val requester = Bukkit.getPlayer(name)
@@ -118,17 +126,16 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
             acceptRequest(player, p, TeleportType.Here)
           case _ =>
             player.sendMessage(s"§7No teleport request from §3$name§7.")
-            return false
+            return true
         }
       case None =>
-        // Try to find a pending request
         tpaNormalRequests.find(_._1 == player).orElse(tpaHereRequests.find(_._2 == player)) match {
           case Some((requester, _)) =>
             val tpType = if (tpaNormalRequests.contains(player)) TeleportType.Normal else TeleportType.Here
             acceptRequest(player, requester, tpType)
           case None =>
             player.sendMessage(messages(1))
-            return false
+            return true
         }
     }
     true
@@ -141,16 +148,16 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
     * @param requester The player who sent the request
     * @param tpType The teleport type (Normal/Here)
     */
-  private def acceptRequest(player: Player, requester: Player, tpType: TeleportType): Unit = {
+   private def acceptRequest(player: Player, requester: Player, tpType: TeleportType): Unit = {
     playerLocations.put(requester, requester.getLocation)
     tpType match {
       case TeleportType.Normal =>
-        teleportAsync(requester, player.getLocation, s"§7Teleported to §3${player.getName}.", s"§3${requester.getName} §7teleported to you.")
+        teleportAsync(requester, player.getLocation,s"§7Teleported to §3${player.getName}.", s"§3${requester.getName} §7teleported to you.")
+        tpaNormalRequests.remove(player) // Remove by target (player)
       case TeleportType.Here =>
-        teleportAsync(player, requester.getLocation, s"§7Teleported to §3${requester.getName}.", s"§3${player.getName} §7teleported to you.")
+        teleportAsync(player, requester.getLocation, s"§3${player.getName} §7teleported to you.", s"§7Teleported to §3${requester.getName}.")
+        tpaHereRequests.remove(requester) // Remove by requester
     }
-    tpaNormalRequests.remove(requester)
-    tpaHereRequests.remove(player)
   }
 
   /**
@@ -182,14 +189,37 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
   private def tpAHereCommand(player: Player, targetName: String): Boolean = {
     getPlayer(targetName) match {
       case Some(target) =>
+        // Check for existing requests
+        if (tpaNormalRequests.get(target).contains(player) || tpaHereRequests.get(player).contains(target)) {
+          sendMessage(player, s"§7You already have a pending request to §3${target.getName}§7.")
+          return true
+        }
+        
         tpaHereRequests.put(player, target)
         sendMessage(target, s"§3${player.getName}§7 wants you to teleport to them.", "§7Type §3/tpaccept§7 to accept or §3/tpdeny§7 to deny.")
         sendMessage(player, s"§7Teleport request sent to §3${target.getName}.")
         true
       case None =>
         sendMessage(player, s"§7Player §3$targetName§7 not found.")
-        false
+        true
     }
+  }
+
+  private def tpCancelCommand(player: Player): Boolean = {
+    // Cancel outgoing TPA requests (where player is requester)
+    val normalCancelled = tpaNormalRequests.filter { case (_, r) => r == player }.keys.toList
+    normalCancelled.foreach(tpaNormalRequests.remove)
+
+    // Cancel outgoing TPAHere requests (where player is requester)
+    val hereCancelled = tpaHereRequests.filter { case (r, _) => r == player }.keys.toList
+    hereCancelled.foreach(tpaHereRequests.remove)
+
+    if (normalCancelled.nonEmpty || hereCancelled.nonEmpty) {
+      sendMessage(player, "§7All your teleport requests have been cancelled.")
+    } else {
+      sendMessage(player, "§7You have no pending teleport requests to cancel.")
+    }
+    true
   }
 
   /**
@@ -202,12 +232,12 @@ class TpaHandler(tpaPlugin: TpaPlugin) extends CommandExecutor {
   private def backCommand(player: Player): Boolean = {
     playerLocations.get(player) match {
       case Some(location) =>
-        teleportAsync(player, location, "Teleported back to previous location.", "")
+        teleportAsync(player, location, "§7Teleported back to previous location.", "")
         playerLocations.remove(player)
         true
       case None =>
-        sendMessage(player, "No previous location to teleport back to.")
-        false
+        sendMessage(player, "§7No previous location to teleport back to.")
+        true
     }
   }
 
