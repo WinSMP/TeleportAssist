@@ -2,14 +2,14 @@ package org.winlogon.teleportassist
 
 import dev.jorel.commandapi.CommandAPICommand
 import dev.jorel.commandapi.arguments.PlayerArgument
-import dev.jorel.commandapi.executors.PlayerCommandExecutor
+import dev.jorel.commandapi.executors.{PlayerCommandExecutor, CommandArguments}
 import org.bukkit.{Bukkit, Location}
 import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
 
 import scala.collection.concurrent.TrieMap
 
-class TpaHandler(tpaPlugin: TpaPlugin) {
+class TpaHandler(tpaPlugin: TeleportAssist) {
   private val errorMessages = Messages.errorMessages
   private val messages = Messages.messages
 
@@ -25,41 +25,51 @@ class TpaHandler(tpaPlugin: TpaPlugin) {
     // /tpa <player>
     new CommandAPICommand("tpa")
       .withArguments(new PlayerArgument("target"))
-      .executesPlayer((player, args) => {
-        val target = args.get("target").asInstanceOf[Player]
-        tpaCommand(player, target)
+      .executesPlayer(new PlayerCommandExecutor {
+        override def run(player: Player, args: CommandArguments): Unit = {
+          val target = args.get("target").asInstanceOf[Player]
+          tpaCommand(player, target)
+        }
       })
       .register()
 
     // /tpaccept [player]
     new CommandAPICommand("tpaccept")
       .withOptionalArguments(new PlayerArgument("player"))
-      .executesPlayer((player, args) => {
-        val targetOption = Option(args.getOrDefault("player", null).asInstanceOf[Player])
-        tpAcceptCommand(player, targetOption.map(_.getName))
+      .executesPlayer(new PlayerCommandExecutor {
+        override def run(player: Player, args: CommandArguments): Unit = {
+          val targetOption = Option(args.getOrDefault("player", null).asInstanceOf[Player])
+          tpAcceptCommand(player, targetOption.map(_.getName))
+        }
       })
       .register()
 
     // /tpdeny
     new CommandAPICommand("tpdeny")
-      .executesPlayer((player, _) => {
-        tpDenyCommand(player)
+      .executesPlayer(new PlayerCommandExecutor {
+        override def run(player: Player, args: CommandArguments): Unit = {
+          tpDenyCommand(player)
+        }
       })
       .register()
 
     // /tpahere <player>
     new CommandAPICommand("tpahere")
       .withArguments(new PlayerArgument("target"))
-      .executesPlayer((player, args) => {
-        val target = args.get("target").asInstanceOf[Player]
-        tpAHereCommand(player, target)
+      .executesPlayer(new PlayerCommandExecutor {
+        override def run(player: Player, args: CommandArguments): Unit = {
+          val target = args.get("target").asInstanceOf[Player]
+          tpAHereCommand(player, target)
+        }
       })
       .register()
 
     // /back
     new CommandAPICommand("back")
-      .executesPlayer((player, _) => {
-        backCommand(player)
+      .executesPlayer(new PlayerCommandExecutor {
+        override def run(player: Player, args: CommandArguments): Unit = {
+          backCommand(player)
+        }
       })
       .register()
   }
