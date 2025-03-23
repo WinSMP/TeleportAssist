@@ -48,6 +48,7 @@ replay_pid*
 .bsp/
 .metals/
 project/metals.sbt
+project/project
 
 # Other folders
 .vscode/

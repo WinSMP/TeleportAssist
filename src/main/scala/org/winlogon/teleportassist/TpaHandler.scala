@@ -23,7 +23,6 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
    * Register all teleport-related commands using CommandAPI
    */
   def registerCommands(): Unit = {
-    // /tpa <player>
     new CommandAPICommand("tpa")
       .withArguments(new PlayerArgument("target"))
       .executesPlayer(new PlayerCommandExecutor {
@@ -34,12 +33,10 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
       })
       .register()
 
-    // /tpaccept [player]
     new CommandAPICommand("tpaccept")
       .withOptionalArguments(new PlayerArgument("player"))
       .executesPlayer(new PlayerCommandExecutor {
         override def run(player: Player, args: CommandArguments): Unit = {
-          // Fix: Use a proper Supplier instead of null
           val targetOption = try {
             Option(args.get("player").asInstanceOf[Player])
           } catch {
@@ -50,7 +47,6 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
       })
       .register()
 
-    // /tpdeny
     new CommandAPICommand("tpdeny")
       .executesPlayer(new PlayerCommandExecutor {
         override def run(player: Player, args: CommandArguments): Unit = {
@@ -59,7 +55,6 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
       })
       .register()
 
-    // /tpahere <player>
     new CommandAPICommand("tpahere")
       .withArguments(new PlayerArgument("target"))
       .executesPlayer(new PlayerCommandExecutor {
@@ -70,7 +65,6 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
       })
       .register()
 
-    // /back
     new CommandAPICommand("back")
       .executesPlayer(new PlayerCommandExecutor {
         override def run(player: Player, args: CommandArguments): Unit = {
@@ -130,20 +124,23 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
     */
   private def tpaCommand(player: Player, target: Player): Boolean = {
     if (target != null && target.isOnline) {
-      // Prevent self-teleport requests
-      if (player == target) {
-        sendMessage(player, "§7You cannot teleport to yourself.")
-        return false
-      }
-
-      tpaNormalRequests.put(target, player)
-      sendMessage(target, s"§3${player.getName}§7 wants to teleport to you.", messages(0))
-      sendMessage(player, s"§7Teleport request sent to §3${target.getName}.")
-      return true
-    } else {
       sendMessage(player, s"§7Player not found.")
       return false
     }
+
+    if (player == target) {
+      sendMessage(player, "§7You cannot teleport to yourself.")
+      return false
+    }
+
+    if (tpaNormalRequests.get(target).contains(player)) {
+      sendMessage(player, "§7You already have a pending teleport request to that player. Please wait until they accept or deny it.")
+      return false
+    }
+    tpaNormalRequests.put(target, player)
+    sendMessage(target, s"§3${player.getName}§7 wants to teleport to you.", messages(0))
+    sendMessage(player, s"§7Teleport request sent to §3${target.getName}.")
+    return true
   }
 
   /**
@@ -207,7 +204,7 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
         teleportAsync(requester, player.getLocation, s"§7Teleported to §3${player.getName}.", s"§3${requester.getName} §7teleported to you.")
       case TeleportType.Here =>
         tpaHereRequests.remove(requester)
-        teleportAsync(player, requester.getLocation, s"§7Teleported to §3${requester.getName}.", s"§3${player.getName} §7teleported to you.")
+        teleportAsync(player, requester.getLocation, s"§3${player.getName} §7teleported to you.", s"§7Teleported to §3${requester.getName}.")
     }
   }
 
@@ -246,21 +243,24 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
     * @return
     */
   private def tpAHereCommand(player: Player, target: Player): Boolean = {
-    if (target != null && target.isOnline) {
-      // Prevent self-teleport requests
-      if (player == target) {
-        sendMessage(player, "§7You cannot teleport yourself to yourself.")
-        return false
-      }
-
-      tpaHereRequests.put(player, target)
-      sendMessage(target, s"§3${player.getName}§7 wants you to teleport to them.", "§7Type §3/tpaccept§7 to accept or §3/tpdeny§7 to deny.")
-      sendMessage(player, s"§7Teleport request sent to §3${target.getName}.")
-      return true
-    } else {
+    if (target == null || !target.isOnline) {
       sendMessage(player, s"§7Player not found.")
       return false
     }
+
+    if (player == target) {
+      sendMessage(player, "§7You cannot teleport yourself to yourself.")
+      return false
+    }
+
+    if (tpaHereRequests.get(player).exists(_ == target)) {
+      sendMessage(player, "§7You already have a pending teleport request to that player. Please wait until they accept or deny it.")
+      return false
+    }
+    tpaHereRequests.put(player, target)
+    sendMessage(target, s"§3${player.getName}§7 wants you to teleport to them.", "§7Type §3/tpaccept§7 to accept or §3/tpdeny§7 to deny.")
+    sendMessage(player, s"§7Teleport request sent to §3${target.getName}.")
+    return true
   }
 
   /**

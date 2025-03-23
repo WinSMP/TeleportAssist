@@ -12,10 +12,9 @@ class TeleportAssist extends JavaPlugin {
 
   override def onEnable(): Unit = {
     isFolia = Utilities.detectFolia()
-    getLogger.info(s"TeleportAssist started!")
+    getLogger.info(s"TeleportAssist loaded!")
     getLogger.info(s"This server is running on ${if (isFolia) "Folia" else "Paper"}")
 
-    // Register CommandAPI commands
     tpaHandler.registerCommands()
   }
 
