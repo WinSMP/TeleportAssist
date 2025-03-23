@@ -1,18 +1,19 @@
 import Dependencies._
 
-lazy val scalaVer = "3.3.4"
+lazy val scalaVer = "3.3.5"
 lazy val orgName = "org.winlogon"
+lazy val projectVersion = "0.2.0"
 lazy val projectName = "TeleportAssist"
 lazy val mainClassName = s"$orgName.teleportassist.$projectName"
 
 ThisBuild / scalaVersion     := scalaVer
-ThisBuild / version          := "0.1.0-SNAPSHOT"
+ThisBuild / version          := s"$projectVersion-SNAPSHOT"
 ThisBuild / organization     := orgName
 ThisBuild / organizationName := "winlogon"
 Compile / mainClass := Some(mainClassName)
 
 // GitHub CI
-ThisBuild / githubWorkflowJavaVersions += JavaSpec.temurin("21")
+ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("21"))
 ThisBuild / publishTo := None
 publish / skip := true
 
