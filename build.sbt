@@ -1,4 +1,5 @@
 import Dependencies._
+import sbtassembly.AssemblyPlugin.defaultShellScript
 
 lazy val scalaVer = "3.3.5"
 lazy val orgName = "org.winlogon"
@@ -22,7 +23,7 @@ crossScalaVersions := Seq(scalaVer)
 lazy val root = (project in file("."))
   .settings(
     name := projectName,
-    libraryDependencies += munit % Test
+    assembly / assemblyOption := (assembly / assemblyOption).value.withIncludeScala(false),
   )
 
 // Merge strategy for avoiding conflicts in dependencies
