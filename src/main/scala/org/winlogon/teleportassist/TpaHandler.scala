@@ -4,6 +4,7 @@ import dev.jorel.commandapi.CommandAPICommand
 import dev.jorel.commandapi.arguments.PlayerArgument
 import dev.jorel.commandapi.executors.{PlayerCommandExecutor, CommandArguments}
 import net.kyori.adventure.text.minimessage.MiniMessage
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver
 import org.bukkit.{Bukkit, Location}
 import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
@@ -16,7 +17,11 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
   private val tpaHereRequests = TrieMap.empty[Player, Player]
   private val playerLocations = TrieMap.empty[Player, Location]
   val isFolia = Utilities.detectFolia()
+
   private val mm = MiniMessage.miniMessage()
+  private val tagResolver = TagResolver.builder()
+    .resolver(TagResolver.standard())
+    .build()
 
   /**
    * Register all teleport-related commands using CommandAPI
@@ -43,7 +48,7 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
           }
           tpAcceptCommand(player, targetOption.map(_.getName))
         }
-      })
+     })
       .register()
 
     new CommandAPICommand("tpdeny")
@@ -285,7 +290,7 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
   }
 
   private def sendComponent(player: Player, message: String): Unit = {
-    player.sendMessage(mm.deserialize(message))
+    player.sendMessage(mm.deserialize(message, tagResolver))
   }
 
   sealed trait TeleportType

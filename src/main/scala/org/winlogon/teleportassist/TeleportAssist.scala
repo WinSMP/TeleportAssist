@@ -4,11 +4,9 @@ import dev.jorel.commandapi.CommandAPI
 import org.bukkit.plugin.java.JavaPlugin
 
 class TeleportAssist extends JavaPlugin {
-  private val errorMessages = Messages.errorMessages
-  private val messages = Messages.messages
+  private var isFolia: Boolean = _
 
   private val tpaHandler = new TpaHandler(this)
-  var isFolia: Boolean = _
 
   override def onEnable(): Unit = {
     isFolia = Utilities.detectFolia()
