@@ -14,6 +14,7 @@ import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.{Bukkit, Location}
 
 import scala.collection.concurrent.TrieMap
+import scala.jdk.OptionConverters._
 
 class TpaHandler(tpaAssist: TeleportAssist) {
 
@@ -33,15 +34,19 @@ class TpaHandler(tpaAssist: TeleportAssist) {
         CommandAPICommand("tpaccept")
             .withOptionalArguments(new PlayerArgument("player"))
             .executesPlayer((player: Player, args: CommandArguments) => {
-                val targetOption = Option(args.getOptional("player")).map(_.asInstanceOf[Player])
-                tpAcceptCommand(player, targetOption.map(_.getName))
+                val maybeRaw: Any = args.get("player")
+                val target: Option[Player] = Option(maybeRaw.asInstanceOf[Player])
+                tpAcceptCommand(player, target.map(_.getName))
                 ()
-            }).register()
+            })
+            .register()
+
 
         CommandAPICommand("tpdeny")
             .withOptionalArguments(new PlayerArgument("player"))
             .executesPlayer((player: Player, args: CommandArguments) => {
-                val targetOption = Option(args.getOptional("player")).map(_.asInstanceOf[Player])
+                val maybeRaw: Any = args.get("player")
+                val targetOption: Option[Player] = Option(maybeRaw.asInstanceOf[Player])
                 tpaDenyCommand(player, targetOption.map(_.getName))
                 ()
             }).register()
@@ -105,11 +110,10 @@ class TpaHandler(tpaAssist: TeleportAssist) {
         tpaNormalRequests.put(target, player)
 
         val requestMsg =
-            s"""
-            |<dark_aqua><name></dark_aqua> <gray>wants to teleport to you.
-            |<click:run_command:'/tpaccept <name>'><green>[Accept]</green></click>
-            |<click:run_command:'/tpdeny <name>'><red>[Deny]</red></click>
-            |""".stripMargin
+        s"""<dark_aqua><name></dark_aqua> <gray>wants to teleport to you.
+        |<click:run_command:'/tpaccept ${player.getName}'><hover:show_text:'<gray>Click to accept teleport request from <dark_aqua><name></dark_aqua>'><green>[Accept]</green></hover></click>
+        |<click:run_command:'/tpdeny ${player.getName}'><hover:show_text:'<gray>Click to deny teleport request from <dark_aqua><name></dark_aqua>'><red>[Deny]</red></hover></click>
+        |""".stripMargin
 
         target.sendRichMessage(requestMsg, Placeholder.component("name", Component.text(player.getName, NamedTextColor.DARK_AQUA)))
         player.sendRichMessage(Messages.Notice.TpaRequestSent.replace("<target>", target.getName))
@@ -187,9 +191,7 @@ class TpaHandler(tpaAssist: TeleportAssist) {
     private def tpaDenyCommand(player: Player, requesterName: Option[String]): Boolean = {
         def sendDenyMsg(requester: Player): Unit = {
             requester.sendRichMessage(
-                """
-                |<gray>Your teleport request to <dark_aqua><target></dark_aqua> was <red>denied</red>.
-                |""".stripMargin,
+                "<gray>Your teleport request to <target> was <red>denied</red>.</gray>",
                 Placeholder.component("target", Component.text(player.getName, NamedTextColor.DARK_AQUA))
             )
         }
@@ -260,10 +262,9 @@ class TpaHandler(tpaAssist: TeleportAssist) {
         tpaHereRequests.put(player, target)
 
         val requestMsg =
-            s"""
-            |<dark_aqua><name></dark_aqua> <gray>wants you to teleport to them.
-            |<click:run_command:'/tpaccept <name>'><green>[Accept]</green></click>
-            |<click:run_command:'/tpdeny <name>'><red>[Deny]</red></click>
+            s"""<dark_aqua><name></dark_aqua> <gray>wants you to teleport to them.
+            |<click:run_command:'/tpaccept ${player.getName}'><hover:show_text:'<gray>Click to teleport to <dark_aqua><name></dark_aqua>'><green>[Accept]</green></hover></click>
+            |<click:run_command:'/tpdeny ${player.getName}'><hover:show_text:'<gray>Click to deny teleport to <dark_aqua><name></dark_aqua>'><red>[Deny]</red></hover></click>
             |""".stripMargin
 
         target.sendRichMessage(requestMsg, Placeholder.component("name", Component.text(player.getName, NamedTextColor.DARK_AQUA)))
