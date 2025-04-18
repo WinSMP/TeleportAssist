@@ -15,12 +15,6 @@ import org.bukkit.{Bukkit, Location}
 
 import scala.collection.concurrent.TrieMap
 
-extension (player: Player) {
-    def send(message: String, placeholders: TagResolver*): Unit = {
-        player.sendRichMessage(message, placeholders*)
-    }
-}
-
 class TpaHandler(tpaPlugin: TeleportAssist) {
 
     private val tpaNormalRequests = TrieMap.empty[Player, Player]
@@ -79,32 +73,32 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
             val scheduler = player.getScheduler
             scheduler.execute(tpaPlugin, () => {
                 player.teleportAsync(location).thenAccept(_ => {
-                    if (successMessage.nonEmpty) player.send(successMessage)
-                    if (notifyMessage.nonEmpty) player.send(notifyMessage)
+                    if (successMessage.nonEmpty) player.sendRichMessage(successMessage)
+                    if (notifyMessage.nonEmpty) player.sendRichMessage(notifyMessage)
                 })
             }, () => {}, 0L)
         } else {
             Bukkit.getScheduler.runTaskAsynchronously(tpaPlugin, () => {
                 player.teleport(location)
-                if (successMessage.nonEmpty) player.send(successMessage)
-                if (notifyMessage.nonEmpty) player.send(notifyMessage)
+                if (successMessage.nonEmpty) player.sendRichMessage(successMessage)
+                if (notifyMessage.nonEmpty) player.sendRichMessage(notifyMessage)
             })
         }
     }
 
     private def tpaCommand(player: Player, target: Player): Boolean = {
         if (target == null || !target.isOnline) {
-            player.send(Messages.Error.PlayerNotFound)
+            player.sendRichMessage(Messages.Error.PlayerNotFound)
             return false
         }
 
         if (player == target) {
-            player.send(Messages.Error.CannotTeleportSelf)
+            player.sendRichMessage(Messages.Error.CannotTeleportSelf)
             return false
         }
 
         if (tpaNormalRequests.get(target).contains(player)) {
-            player.send(Messages.Error.RequestAlreadyPending)
+            player.sendRichMessage(Messages.Error.RequestAlreadyPending)
             return false
         }
 
@@ -117,8 +111,8 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
             |<click:run_command:'/tpdeny <name>'><red>[Deny]</red></click>
             |""".stripMargin
 
-        target.send(requestMsg, Placeholder.component("name", Component.text(player.getName, NamedTextColor.DARK_AQUA)))
-        player.send(Messages.Notice.TpaRequestSent.replace("<target>", target.getName))
+        target.sendRichMessage(requestMsg, Placeholder.component("name", Component.text(player.getName, NamedTextColor.DARK_AQUA)))
+        player.sendRichMessage(Messages.Notice.TpaRequestSent.replace("<target>", target.getName))
         true
     }
 
@@ -127,7 +121,7 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
             case Some(name) => {
                 val requester = Bukkit.getPlayer(name)
                 if (requester == null || !requester.isOnline) {
-                    player.send(Messages.Error.PlayerNotOnline.replace("<player>", name))
+                    player.sendRichMessage(Messages.Error.PlayerNotOnline.replace("<player>", name))
                     return false
                 }
 
@@ -138,7 +132,7 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
                     acceptRequest(player, requester, TeleportType.Here)
                     true
                 } else {
-                    player.send(Messages.Error.PlayerNotOnline.replace("<player>", name))
+                    player.sendRichMessage(Messages.Error.PlayerNotOnline.replace("<player>", name))
                     false
                 }
             }
@@ -155,7 +149,7 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
                                 true
                             }
                             case None => {
-                                player.send(Messages.Notice.NoPendingRequest)
+                                player.sendRichMessage(Messages.Notice.NoPendingRequest)
                                 false
                             }
                         }
@@ -192,20 +186,20 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
 
     private def tpaDenyCommand(player: Player, requesterName: Option[String]): Boolean = {
         def sendDenyMsg(requester: Player): Unit = {
-            requester.send(
+            requester.sendRichMessage(
                 """
                 |<gray>Your teleport request to <dark_aqua><target></dark_aqua> was <red>denied</red>.
                 |""".stripMargin,
                 Placeholder.component("target", Component.text(player.getName, NamedTextColor.DARK_AQUA))
             )
         }
-        player.send(Messages.Notice.TeleportDenied)
+        player.sendRichMessage(Messages.Notice.TeleportDenied)
 
         requesterName match {
             case Some(name) => {
                 val requester = Bukkit.getPlayer(name)
                 if (requester == null || !requester.isOnline) {
-                    player.send(Messages.Error.PlayerNotOnline.replace("<player>", name))
+                    player.sendRichMessage(Messages.Error.PlayerNotOnline.replace("<player>", name))
                     return false
                 }
 
@@ -218,7 +212,7 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
                     tpaHereRequests.remove(requester)
                     true
                 } else {
-                    player.send(Messages.Notice.NoPendingRequest)
+                    player.sendRichMessage(Messages.Notice.NoPendingRequest)
                     false
                 }
             }
@@ -237,7 +231,7 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
                                 true
                             }
                             case None => {
-                                player.send(Messages.Notice.NoPendingRequest)
+                                player.sendRichMessage(Messages.Notice.NoPendingRequest)
                                 false
                             }
                         }
@@ -249,17 +243,17 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
 
     private def tpaHereCommand(player: Player, target: Player): Boolean = {
         if (target == null || !target.isOnline) {
-            player.send(Messages.Error.PlayerNotFound)
+            player.sendRichMessage(Messages.Error.PlayerNotFound)
             return false
         }
 
         if (player == target) {
-            player.send(Messages.Error.CannotTeleportSelfHere)
+            player.sendRichMessage(Messages.Error.CannotTeleportSelfHere)
             return false
         }
 
         if (tpaHereRequests.get(player).exists(_ == target)) {
-            player.send(Messages.Error.RequestAlreadyPending)
+            player.sendRichMessage(Messages.Error.RequestAlreadyPending)
             return false
         }
 
@@ -272,8 +266,8 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
             |<click:run_command:'/tpdeny <name>'><red>[Deny]</red></click>
             |""".stripMargin
 
-        target.send(requestMsg, Placeholder.component("name", Component.text(player.getName, NamedTextColor.DARK_AQUA)))
-        player.send(Messages.Notice.TpaHereRequestSent.replace("<target>", target.getName))
+        target.sendRichMessage(requestMsg, Placeholder.component("name", Component.text(player.getName, NamedTextColor.DARK_AQUA)))
+        player.sendRichMessage(Messages.Notice.TpaHereRequestSent.replace("<target>", target.getName))
         true
     }
 
@@ -285,15 +279,13 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
                 true
             }
             case None => {
-                player.send(Messages.Notice.NoPreviousLocation)
+                player.sendRichMessage(Messages.Notice.NoPreviousLocation)
                 false
             }
         }
     }
 
-    sealed trait TeleportType
-    object TeleportType {
-        case object Normal extends TeleportType
-        case object Here extends TeleportType
+    enum TeleportType {
+        case Normal, Here
     }
 }
