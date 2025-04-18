@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 package org.winlogon.teleportassist
 
 /** A collection of utility functions which may be useful in more than one place

@@ -1,8 +1,8 @@
-name: TeleportAssist
-version: '0.1.0-SNAPSHOT'
+name: 'TeleportAssist'
+version: '0.2.0-SNAPSHOT'
 main: 'org.winlogon.teleportassist.TeleportAssist'
 api-version: 1.21
-description: 'Intuitive, good-looking, and simple /tpa plugin.'
+description: 'Paper plugin providing async teleport requests with Folia compatibility'
 folia-supported: true
 dependencies:
   server:
