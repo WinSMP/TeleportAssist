@@ -15,7 +15,7 @@ import org.bukkit.{Bukkit, Location}
 
 import scala.collection.concurrent.TrieMap
 
-class TpaHandler(tpaPlugin: TeleportAssist) {
+class TpaHandler(tpaAssist: TeleportAssist) {
 
     private val tpaNormalRequests = TrieMap.empty[Player, Player]
     private val tpaHereRequests = TrieMap.empty[Player, Player]
@@ -62,23 +62,23 @@ class TpaHandler(tpaPlugin: TeleportAssist) {
 
     private def executeTaskAsync(player: Player, location: Location, task: () => Unit): Unit = {
         if (isFolia) {
-            player.getServer.getRegionScheduler.execute(tpaPlugin, location, () => task())
+            player.getServer.getRegionScheduler.execute(tpaAssist, location, () => task())
         } else {
-            Bukkit.getScheduler.runTask(tpaPlugin, () => task())
+            Bukkit.getScheduler.runTask(tpaAssist, () => task())
         }
     }
 
     private def teleportAsync(player: Player, location: Location, successMessage: String, notifyMessage: String): Unit = {
         if (isFolia) {
             val scheduler = player.getScheduler
-            scheduler.execute(tpaPlugin, () => {
+            scheduler.execute(tpaAssist, () => {
                 player.teleportAsync(location).thenAccept(_ => {
                     if (successMessage.nonEmpty) player.sendRichMessage(successMessage)
                     if (notifyMessage.nonEmpty) player.sendRichMessage(notifyMessage)
                 })
             }, () => {}, 0L)
         } else {
-            Bukkit.getScheduler.runTaskAsynchronously(tpaPlugin, () => {
+            Bukkit.getScheduler.runTaskAsynchronously(tpaAssist, () => {
                 player.teleport(location)
                 if (successMessage.nonEmpty) player.sendRichMessage(successMessage)
                 if (notifyMessage.nonEmpty) player.sendRichMessage(notifyMessage)

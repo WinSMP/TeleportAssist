@@ -1,6 +1,6 @@
-# TpaPlugin
+# TeleportAssist
 
-TpaPlugin is a Minecraft plugin designed for Bukkit servers that allows players to send and accept teleport requests. It provides commands for teleporting to other players, accepting or denying teleport requests, and teleporting back to a previous location.
+TeleportAssist is a Minecraft plugin designed for Minecraft servers that allows players to send and accept teleport requests. It provides commands for teleporting to other players, accepting or denying teleport requests, and teleporting back to a previous location.
 
 ## Features
 
@@ -18,24 +18,9 @@ TpaPlugin is a Minecraft plugin designed for Bukkit servers that allows players 
 - `/tpahere <player>`: Request another player to teleport to you.
 - `/back`: Teleport back to your previous location.
 
-## Installation
-
-1. Download the TpaPlugin JAR file.
-2. Place the JAR file in the `plugins` directory of your Bukkit server.
-3. Restart the server or use the `/reload` command.
-4. The plugin will be enabled, and you will see log messages indicating its status.
-
 ## Configuration
 
 The plugin does not require any configuration files. It automatically detects if the server is running on Folia or Paper and adjusts its behavior accordingly.
-
-## Usage
-
-Once the plugin is installed and enabled, players can use the commands listed above to manage teleport requests. The plugin provides helpful messages for usage and errors.
-
-## Development
-
-This plugin is developed in Scala and uses the Bukkit API. If you wish to contribute or modify the plugin, ensure you have the necessary development environment set up for Scala and Bukkit.
 
 ## Acknowledgments
 
