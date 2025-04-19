@@ -189,55 +189,72 @@ class TpaHandler(tpaAssist: TeleportAssist) {
     }
 
     private def tpaDenyCommand(player: Player, requesterName: Option[String]): Boolean = {
-        def sendDenyMsg(requester: Player): Unit = {
-            requester.sendRichMessage(
-                "<gray>Your teleport request to <target> was <red>denied</red>.</gray>",
-                Placeholder.component("target", Component.text(player.getName, NamedTextColor.DARK_AQUA))
-            )
+        // helper to send the deny message to the requester
+        def notifyRequester(r: Player): Unit = {
+          r.sendRichMessage(
+            "<gray>Your teleport request to <dark_aqua>" + player.getName +
+            "</dark_aqua> was <red>denied</red>.</gray>"
+          )
         }
-        player.sendRichMessage(Messages.Notice.TeleportDenied)
-
+    
         requesterName match {
-            case Some(name) => {
-                val requester = Bukkit.getPlayer(name)
-                if (requester == null || !requester.isOnline) {
-                    player.sendRichMessage(Messages.Error.PlayerNotOnline.replace("<player>", name))
-                    return false
-                }
-
-                if (tpaNormalRequests.get(player).contains(requester)) {
-                    sendDenyMsg(requester)
-                    tpaNormalRequests.remove(player)
-                    true
-                } else if (tpaHereRequests.get(requester).contains(player)) {
-                    sendDenyMsg(requester)
+          case Some(name) =>
+            // Do we have a *normal* request TO this player from someone named `name`?
+            if (tpaNormalRequests.get(player).exists(_.getName == name)) {
+              val requester = Bukkit.getPlayerExact(name)
+              if (requester != null && requester.isOnline) {
+                notifyRequester(requester)
+                tpaNormalRequests.remove(player)
+                player.sendRichMessage(Messages.Notice.TeleportDenied)
+                true
+              } else {
+                player.sendRichMessage(Messages.Error.PlayerNotOnline.replace("<player>", name))
+                false
+              }
+    
+            // ... or do we have a *here* request FROM someone named `name` FOR this player?
+            } else if (tpaHereRequests.exists { case (req, tgt) => req.getName == name && tgt == player }) {
+              val requester = Bukkit.getPlayerExact(name)
+              if (requester != null && requester.isOnline) {
+                notifyRequester(requester)
+                // remove by key
+                tpaHereRequests.remove(requester)
+                player.sendRichMessage(Messages.Notice.TeleportDenied)
+                true
+              } else {
+                player.sendRichMessage(Messages.Error.PlayerNotOnline.replace("<player>", name))
+                false
+              }
+    
+            } else {
+              // no matching pending request
+              player.sendRichMessage(Messages.Notice.NoPendingRequest)
+              false
+            }
+    
+          case None =>
+            // no name given - deny the OLDEST pending request, preferring normal over here
+            tpaNormalRequests.get(player) match {
+              case Some(requester) =>
+                // normal request queued
+                notifyRequester(requester)
+                tpaNormalRequests.remove(player)
+                player.sendRichMessage(Messages.Notice.TeleportDenied)
+                true
+    
+              case None =>
+                // no normal; check for a “here” request
+                tpaHereRequests.find { case (_, tgt) => tgt == player } match {
+                  case Some((requester, _)) =>
+                    notifyRequester(requester)
                     tpaHereRequests.remove(requester)
+                    player.sendRichMessage(Messages.Notice.TeleportDenied)
                     true
-                } else {
+    
+                  case None =>
+                    // truly nothing to deny
                     player.sendRichMessage(Messages.Notice.NoPendingRequest)
                     false
-                }
-            }
-            case None => {
-                tpaNormalRequests.find(_._1 == player) match {
-                    case Some((_, requester)) => {
-                        sendDenyMsg(requester)
-                        tpaNormalRequests.remove(player)
-                        true
-                    }
-                    case None => {
-                        tpaHereRequests.find(_._2 == player) match {
-                            case Some((requester, _)) => {
-                                sendDenyMsg(requester)
-                                tpaHereRequests.remove(requester)
-                                true
-                            }
-                            case None => {
-                                player.sendRichMessage(Messages.Notice.NoPendingRequest)
-                                false
-                            }
-                        }
-                    }
                 }
             }
         }
