@@ -112,8 +112,7 @@ class TpaHandler(tpaAssist: TeleportAssist) {
         val requestMsg =
         s"""<dark_aqua><name></dark_aqua> <gray>wants to teleport to you.
         |<click:run_command:'/tpaccept ${player.getName}'><hover:show_text:'<gray>Click to accept teleport request from <dark_aqua><name></dark_aqua>'><green>[Accept]</green></hover></click>
-        |<click:run_command:'/tpdeny ${player.getName}'><hover:show_text:'<gray>Click to deny teleport request from <dark_aqua><name></dark_aqua>'><red>[Deny]</red></hover></click>
-        |""".stripMargin
+        |<click:run_command:'/tpdeny ${player.getName}'><hover:show_text:'<gray>Click to deny teleport request from <dark_aqua><name></dark_aqua>'><red>[Deny]</red></hover></click>""".stripMargin
 
         target.sendRichMessage(requestMsg, Placeholder.component("name", Component.text(player.getName, NamedTextColor.DARK_AQUA)))
         player.sendRichMessage(Messages.Notice.TpaRequestSent.replace("<target>", target.getName))
