@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MPL-2.0
 package org.winlogon.teleportassist
 
-import dev.jorel.commandapi.CommandAPICommand
-import dev.jorel.commandapi.arguments.PlayerArgument
-import dev.jorel.commandapi.executors.{CommandArguments, CommandExecutor, PlayerCommandExecutor}
-
+import com.mojang.brigadier.Command
+import com.mojang.brigadier.context.CommandContext
+import com.mojang.brigadier.arguments.StringArgumentType
+import io.papermc.paper.command.brigadier.{Commands, CommandSourceStack}
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents
+import io.papermc.paper.command.brigadier.argument.ArgumentTypes
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
-import net.kyori.adventure.text.minimessage.tag.resolver.{TagResolver, Placeholder}
-
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.{Bukkit, Location}
@@ -16,55 +17,86 @@ import org.bukkit.{Bukkit, Location}
 import scala.collection.concurrent.TrieMap
 import scala.jdk.OptionConverters._
 
-class TpaHandler(tpaAssist: TeleportAssist) {
-
+class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
     private val tpaNormalRequests = TrieMap.empty[Player, Player]
     private val tpaHereRequests = TrieMap.empty[Player, Player]
     private val playerLocations = TrieMap.empty[Player, Location]
-    val isFolia = Utilities.detectFolia()
 
     def registerCommands(): Unit = {
-        CommandAPICommand("tpa")
-            .withArguments(new PlayerArgument("target"))
-            .executesPlayer((player: Player, args: CommandArguments) => {
-                tpaCommand(player, args.get("target").asInstanceOf[Player])
-                ()
-            }).register()
+        val teleportCommand = Commands.literal("tpa")
+            .`then`(Commands.argument("target", ArgumentTypes.player())
+                .executes(ctx => {
+                    val source = ctx.getSource
+                    source.getSender match {
+                        case player: Player =>
+                            val targetResolver = ctx.getArgument("target", classOf[PlayerSelectorArgumentResolver])
+                            val target = targetResolver.resolve(source).getFirst()
+                            tpaCommand(player, target)
+                        case _ =>
+                            source.sendMessage(Component.text("Only players can use this command"))
+                    }
+                    Command.SINGLE_SUCCESS
+                }))
+            .build()
 
-        CommandAPICommand("tpaccept")
-            .withOptionalArguments(new PlayerArgument("player"))
-            .executesPlayer((player: Player, args: CommandArguments) => {
-                val maybeRaw: Any = args.get("player")
-                val target: Option[Player] = Option(maybeRaw.asInstanceOf[Player])
-                tpAcceptCommand(player, target.map(_.getName))
-                ()
+        val acceptCommand = Commands.literal("tpaccept")
+            .executes(ctx => handleTpAccept(ctx, None))
+            .`then`(Commands.argument("player", StringArgumentType.word())
+                .executes(ctx => {
+                    val playerName = StringArgumentType.getString(ctx, "player")
+                    handleTpAccept(ctx, Bukkit.getPlayer(playerName).toScala)
+                }))
+            .build()
+
+        val denyCommand = Commands.literal("tpdeny")
+            .executes(ctx => handleTpDeny(ctx, None))
+            .`then`(Commands.argument("player", StringArgumentType.word())
+                .executes(ctx => {
+                    val playerName = StringArgumentType.getString(ctx, "player")
+                    handleTpDeny(ctx, Bukkit.getPlayer(playerName).toScala)
+                }))
+            .build()
+
+        val teleportHere = Commands.literal("tpahere")
+            .`then`(Commands.argument("target", ArgumentTypes.player())
+                .requires(sender => /* ... */ true)
+                .executes(ctx => {
+                    val source = ctx.getSource
+                    source.getSender match {
+                        case player: Player =>
+                            val targetResolver = ctx.getArgument("target", classOf[PlayerSelectorArgumentResolver])
+                            val target = targetResolver.resolve(source).getFirst()
+                            tpaHereCommand(player, target)
+                        case _ =>
+                            source.sendMessage(Component.text("Only players can use this command"))
+                    }
+                    Command.SINGLE_SUCCESS
+                }))
+            .build()
+
+        // /back command
+        val teleportBackCommand = Commands.literal("back")
+            .requires(sender => sender.getExecutor().isInstanceOf[Player] )
+            .executes(ctx => {
+                ctx.getSource.getExecutor match {
+                    case player: Player => backCommand(player)
+                    case _ => ctx.getSender.sendMessage(Component.text("Only players can use this command"))
+                }
+                Command.SINGLE_SUCCESS
             })
-            .register()
+            .build()
 
-
-        CommandAPICommand("tpdeny")
-            .withOptionalArguments(new PlayerArgument("player"))
-            .executesPlayer((player: Player, args: CommandArguments) => {
-                val maybeRaw: Any = args.get("player")
-                val targetOption: Option[Player] = Option(maybeRaw.asInstanceOf[Player])
-                tpaDenyCommand(player, targetOption.map(_.getName))
-                ()
-            }).register()
-
-        CommandAPICommand("tpahere")
-            .withArguments(new PlayerArgument("target"))
-            .executesPlayer((player: Player, args: CommandArguments) => {
-                tpaHereCommand(player, args.get("target").asInstanceOf[Player])
-                ()
-            }).register()
-
-        CommandAPICommand("back")
-            .executesPlayer((player: Player, _: CommandArguments) => {
-                backCommand(player)
-                ()
-            }).register()
+        tpaAssist.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS) { event =>
+            val registrar = event.registrar()
+            registrar.register(tpaRegisterCommand, "Ask to teleport to a player")
+            registrar.register(tpaHereCommand, "Ask to teleport a player to you")
+            registrar.register(tpaAcceptCommand, "Accept a player's teleport request")
+            registrar.register(tpDenyCommand, "Deny someone's teleport request")
+            registrar.register(backCommand, "Go back to where you were before teleporting")
+        }
     }
 
+    // Helper methods remain the same as original implementation
     private def executeTaskAsync(player: Player, location: Location, task: () => Unit): Unit = {
         if (isFolia) {
             player.getServer.getRegionScheduler.execute(tpaAssist, location, () => task())
@@ -110,55 +142,65 @@ class TpaHandler(tpaAssist: TeleportAssist) {
         tpaNormalRequests.put(target, player)
 
         val requestMsg =
-        s"""<dark_aqua><name></dark_aqua> <gray>wants to teleport to you.
-        |<click:run_command:'/tpaccept ${player.getName}'><hover:show_text:'<gray>Click to accept teleport request from <dark_aqua><name></dark_aqua>'><green>[Accept]</green></hover></click>
-        |<click:run_command:'/tpdeny ${player.getName}'><hover:show_text:'<gray>Click to deny teleport request from <dark_aqua><name></dark_aqua>'><red>[Deny]</red></hover></click>""".stripMargin
+            s"""<dark_aqua><name></dark_aqua> <gray>wants to teleport to you.
+            |<click:run_command:'/tpaccept ${player.getName}'><hover:show_text:'<gray>Click to accept teleport request from <dark_aqua><name></dark_aqua>'><green>[Accept]</green></hover></click>
+            |<click:run_command:'/tpdeny ${player.getName}'><hover:show_text:'<gray>Click to deny teleport request from <dark_aqua><name></dark_aqua>'><red>[Deny]</red></hover></click>""".stripMargin
 
         target.sendRichMessage(requestMsg, Placeholder.component("name", Component.text(player.getName, NamedTextColor.DARK_AQUA)))
         player.sendRichMessage(Messages.Notice.TpaRequestSent.replace("<target>", target.getName))
         true
     }
 
-    private def tpAcceptCommand(player: Player, requesterName: Option[String]): Boolean = {
-        requesterName match {
-            case Some(name) => {
-                val requester = Bukkit.getPlayer(name)
-                if (requester == null || !requester.isOnline) {
-                    player.sendRichMessage(Messages.Error.PlayerNotOnline.replace("<player>", name))
-                    return false
-                }
+    private def handleTpAccept(ctx: CommandContext[CommandSourceStack], target: Option[Player]): Int = {
+        ctx.getSource.getExecutor match {
+            case player: Player =>
+                if (tpAcceptCommand(player, target)) Command.SINGLE_SUCCESS
+                else 0
+            case _ =>
+                ctx.getSender.sendMessage(Component.text("Only players can use this command"))
+                Command.SINGLE_SUCCESS
+        }
+    }
 
-                if (tpaNormalRequests.get(player).contains(requester)) {
-                    acceptRequest(player, requester, TeleportType.Normal)
+    private def handleTpDeny(ctx: CommandContext[CommandSourceStack], target: Option[Player]): Int = {
+        ctx.getSource.getExecutor match {
+            case player: Player =>
+                if (tpaDenyCommand(player, target)) Command.SINGLE_SUCCESS
+                else 0
+            case _ =>
+                ctx.getSender.sendMessage(Component.text("Only players can use this command"))
+                Command.SINGLE_SUCCESS
+        }
+    }
+
+    private def tpAcceptCommand(player: Player, requester: Option[Player]): Boolean = {
+        requester match {
+            case Some(r) =>
+                if (tpaNormalRequests.get(player).contains(r)) {
+                    acceptRequest(player, r, TeleportType.Normal)
                     true
-                } else if (tpaHereRequests.get(requester).contains(player)) {
-                    acceptRequest(player, requester, TeleportType.Here)
+                } else if (tpaHereRequests.get(r).contains(player)) {
+                    acceptRequest(player, r, TeleportType.Here)
                     true
                 } else {
-                    player.sendRichMessage(Messages.Error.PlayerNotOnline.replace("<player>", name))
+                    player.sendRichMessage(Messages.Error.PlayerNotOnline.replace("<player>", r.getName))
                     false
                 }
-            }
-            case None => {
-                tpaNormalRequests.find(_._1 == player) match {
-                    case Some((_, requester)) => {
-                        acceptRequest(player, requester, TeleportType.Normal)
+            case None =>
+                tpaNormalRequests.remove(player) match {
+                    case Some(r) =>
+                        acceptRequest(player, r, TeleportType.Normal)
                         true
-                    }
-                    case None => {
+                    case None =>
                         tpaHereRequests.find(_._2 == player) match {
-                            case Some((requester, _)) => {
-                                acceptRequest(player, requester, TeleportType.Here)
+                            case Some((r, _)) =>
+                                acceptRequest(player, r, TeleportType.Here)
                                 true
-                            }
-                            case None => {
+                            case None =>
                                 player.sendRichMessage(Messages.Notice.NoPendingRequest)
                                 false
-                            }
                         }
-                    }
                 }
-            }
         }
     }
 
@@ -166,7 +208,7 @@ class TpaHandler(tpaAssist: TeleportAssist) {
         playerLocations.put(requester, requester.getLocation)
 
         tpType match {
-            case TeleportType.Normal => {
+            case TeleportType.Normal =>
                 tpaNormalRequests.remove(player)
                 teleportAsync(
                     requester,
@@ -174,8 +216,7 @@ class TpaHandler(tpaAssist: TeleportAssist) {
                     Messages.Notice.TeleportSuccess.replace("<player>", player.getName),
                     Messages.Notice.TeleportHereSuccess.replace("<player>", requester.getName)
                 )
-            }
-            case TeleportType.Here => {
+            case TeleportType.Here =>
                 tpaHereRequests.remove(requester)
                 teleportAsync(
                     player,
@@ -183,79 +224,40 @@ class TpaHandler(tpaAssist: TeleportAssist) {
                     Messages.Notice.TeleportHereSuccess.replace("<player>", requester.getName),
                     Messages.Notice.TeleportSuccess.replace("<player>", player.getName)
                 )
-            }
         }
     }
 
-    private def tpaDenyCommand(player: Player, requesterName: Option[String]): Boolean = {
-        // helper to send the deny message to the requester
-        def notifyRequester(r: Player): Unit = {
-          r.sendRichMessage(
-            "<gray>Your teleport request to <dark_aqua>" + player.getName +
-            "</dark_aqua> was <red>denied</red>.</gray>"
-          )
-        }
-    
-        requesterName match {
-          case Some(name) =>
-            // Do we have a *normal* request TO this player from someone named `name`?
-            if (tpaNormalRequests.get(player).exists(_.getName == name)) {
-              val requester = Bukkit.getPlayerExact(name)
-              if (requester != null && requester.isOnline) {
-                notifyRequester(requester)
-                tpaNormalRequests.remove(player)
-                player.sendRichMessage(Messages.Notice.TeleportDenied)
-                true
-              } else {
-                player.sendRichMessage(Messages.Error.PlayerNotOnline.replace("<player>", name))
-                false
-              }
-    
-            // ... or do we have a *here* request FROM someone named `name` FOR this player?
-            } else if (tpaHereRequests.exists { case (req, tgt) => req.getName == name && tgt == player }) {
-              val requester = Bukkit.getPlayerExact(name)
-              if (requester != null && requester.isOnline) {
-                notifyRequester(requester)
-                // remove by key
-                tpaHereRequests.remove(requester)
-                player.sendRichMessage(Messages.Notice.TeleportDenied)
-                true
-              } else {
-                player.sendRichMessage(Messages.Error.PlayerNotOnline.replace("<player>", name))
-                false
-              }
-    
-            } else {
-              // no matching pending request
-              player.sendRichMessage(Messages.Notice.NoPendingRequest)
-              false
-            }
-    
-          case None =>
-            // no name given - deny the OLDEST pending request, preferring normal over here
-            tpaNormalRequests.get(player) match {
-              case Some(requester) =>
-                // normal request queued
-                notifyRequester(requester)
-                tpaNormalRequests.remove(player)
-                player.sendRichMessage(Messages.Notice.TeleportDenied)
-                true
-    
-              case None =>
-                // no normal; check for a “here” request
-                tpaHereRequests.find { case (_, tgt) => tgt == player } match {
-                  case Some((requester, _)) =>
-                    notifyRequester(requester)
-                    tpaHereRequests.remove(requester)
-                    player.sendRichMessage(Messages.Notice.TeleportDenied)
+    private def tpaDenyCommand(player: Player, requester: Option[Player]): Boolean = {
+        requester match {
+            case Some(r) =>
+                if (tpaNormalRequests.get(player).exists(_ == r)) {
+                    r.sendRichMessage(s"<gray>Your teleport request to <dark_aqua>${player.getName}</dark_aqua> was <red>denied</red>")
+                    tpaNormalRequests.remove(player)
                     true
-    
-                  case None =>
-                    // truly nothing to deny
-                    player.sendRichMessage(Messages.Notice.NoPendingRequest)
+                } else if (tpaHereRequests.get(r).contains(player)) {
+                    r.sendRichMessage(s"<gray>Your teleport request to summon <dark_aqua>${player.getName}</dark_aqua> was <red>denied</red>")
+                    tpaHereRequests.remove(r)
+                    true
+                } else {
+                    player.sendRichMessage(Messages.Error.PlayerNotOnline.replace("<player>", r.getName))
                     false
                 }
-            }
+            case None =>
+                tpaNormalRequests.remove(player) match {
+                    case Some(r) =>
+                        r.sendRichMessage(s"<gray>Your teleport request to <dark_aqua>${player.getName}</dark_aqua> was <red>denied</red>")
+                        true
+                    case None =>
+                        tpaHereRequests.find(_._2 == player) match {
+                            case Some((r, _)) =>
+                                r.sendRichMessage(s"<gray>Your teleport request to summon <dark_aqua>${player.getName}</dark_aqua> was <red>denied</red>")
+                                tpaHereRequests.remove(r)
+                                true
+                            case None =>
+                                player.sendRichMessage(Messages.Notice.NoPendingRequest)
+                                false
+                        }
+                }
         }
     }
 
@@ -280,8 +282,7 @@ class TpaHandler(tpaAssist: TeleportAssist) {
         val requestMsg =
             s"""<dark_aqua><name></dark_aqua> <gray>wants you to teleport to them.
             |<click:run_command:'/tpaccept ${player.getName}'><hover:show_text:'<gray>Click to teleport to <dark_aqua><name></dark_aqua>'><green>[Accept]</green></hover></click>
-            |<click:run_command:'/tpdeny ${player.getName}'><hover:show_text:'<gray>Click to deny teleport to <dark_aqua><name></dark_aqua>'><red>[Deny]</red></hover></click>
-            |""".stripMargin
+            |<click:run_command:'/tpdeny ${player.getName}'><hover:show_text:'<gray>Click to deny teleport to <dark_aqua><name></dark_aqua>'><red>[Deny]</red></hover></click>""".stripMargin
 
         target.sendRichMessage(requestMsg, Placeholder.component("name", Component.text(player.getName, NamedTextColor.DARK_AQUA)))
         player.sendRichMessage(Messages.Notice.TpaHereRequestSent.replace("<target>", target.getName))
@@ -290,19 +291,17 @@ class TpaHandler(tpaAssist: TeleportAssist) {
 
     private def backCommand(player: Player): Boolean = {
         playerLocations.get(player) match {
-            case Some(location) => {
+            case Some(location) =>
                 teleportAsync(player, location, Messages.Notice.TeleportBackSuccess, "")
                 playerLocations.remove(player)
                 true
-            }
-            case None => {
+            case None =>
                 player.sendRichMessage(Messages.Notice.NoPreviousLocation)
                 false
-            }
         }
     }
 
-    enum TeleportType {
+    private enum TeleportType {
         case Normal, Here
     }
 }

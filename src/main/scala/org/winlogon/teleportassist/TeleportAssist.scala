@@ -5,12 +5,16 @@ import dev.jorel.commandapi.CommandAPI
 import org.bukkit.plugin.java.JavaPlugin
 
 class TeleportAssist extends JavaPlugin {
-    private var isFolia: Boolean = _
+    private val isFolia: Boolean = try {
+        Class.forName("io.papermc.paper.threadedregions.RegionizedServer")
+        true
+    } catch {
+        case _: ClassNotFoundException => false
+    }
 
-    private val tpaHandler = new TpaHandler(this)
+    private val tpaHandler = TpaHandler(this, isFolia)
 
     override def onEnable(): Unit = {
-        isFolia = Utilities.detectFolia()
         getLogger.info(s"TeleportAssist loaded!")
         getLogger.info(s"This server is running on ${if (isFolia) "Folia" else "Paper"}")
 
