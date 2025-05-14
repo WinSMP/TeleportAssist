@@ -8,6 +8,7 @@ import com.mojang.brigadier.arguments.StringArgumentType
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes
 import io.papermc.paper.command.brigadier.argument.resolvers.selector.PlayerSelectorArgumentResolver
 import io.papermc.paper.command.brigadier.{Commands, CommandSourceStack}
+import io.papermc.paper.plugin.lifecycle.event.registrar.ReloadableRegistrarEvent
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents
 
 import net.kyori.adventure.text.Component
@@ -57,7 +58,7 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
             .`then`(Commands.argument("player", StringArgumentType.word())
                 .executes(ctx => {
                     val playerName = StringArgumentType.getString(ctx, "player")
-                    handleTpDeny(ctx, Bukkit.getPlayer(playerName).toScala)
+                    handleTpDeny(ctx, Option(Bukkit.getPlayer(playerName)))
                 }))
             .build()
 
@@ -72,14 +73,14 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
                             val target = targetResolver.resolve(source).getFirst()
                             tpaHereCommand(player, target)
                         case _ =>
-                            source.sendMessage(Component.text("Only players can use this command"))
+                            source.getExecutor.sendMessage(Component.text("Only players can use this command"))
                     }
                     Command.SINGLE_SUCCESS
                 }))
             .build()
 
         // /back command
-        val teleportBackCommand = Commands.literal("back")
+        val teleportBackCommand = Commands.literal("tpback")
             .requires(sender => sender.getExecutor().isInstanceOf[Player] )
             .executes(ctx => {
                 ctx.getSource.getExecutor match {
@@ -90,14 +91,17 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
             })
             .build()
 
-        tpaAssist.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS) { event =>
-            val registrar = event.registrar()
-            registrar.register(tpaRegisterCommand, "Ask to teleport to a player")
-            registrar.register(tpaHereCommand, "Ask to teleport a player to you")
-            registrar.register(tpaAcceptCommand, "Accept a player's teleport request")
-            registrar.register(tpDenyCommand, "Deny someone's teleport request")
-            registrar.register(backCommand, "Go back to where you were before teleporting")
-        }
+        tpaAssist.getLifecycleManager().registerEventHandler(
+            LifecycleEvents.COMMANDS,
+            (event: ReloadableRegistrarEvent[Commands]) => {
+                val registrar = event.registrar()
+                registrar.register(teleportCommand, "Ask to teleport to a player")
+                registrar.register(acceptCommand, "Ask to teleport a player to you")
+                registrar.register(denyCommand, "Accept a player's teleport request")
+                registrar.register(teleportHere, "Deny someone's teleport request")
+                registrar.register(teleportBackCommand, "Go back to where you were before teleporting")
+            }
+        )
     }
 
     // Helper methods remain the same as original implementation
@@ -156,23 +160,25 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
     }
 
     private def handleTpAccept(ctx: CommandContext[CommandSourceStack], target: Option[Player]): Int = {
-        ctx.getSource.getExecutor match {
+        val src = ctx.getSource
+        src.getExecutor match {
             case player: Player =>
                 if (tpAcceptCommand(player, target)) Command.SINGLE_SUCCESS
                 else 0
             case _ =>
-                ctx.getSender.sendMessage(Component.text("Only players can use this command"))
+                src.getSender.sendMessage(Component.text("Only players can use this command"))
                 Command.SINGLE_SUCCESS
         }
     }
 
     private def handleTpDeny(ctx: CommandContext[CommandSourceStack], target: Option[Player]): Int = {
-        ctx.getSource.getExecutor match {
+        val src = ctx.getSource
+        src.getExecutor match {
             case player: Player =>
                 if (tpaDenyCommand(player, target)) Command.SINGLE_SUCCESS
                 else 0
             case _ =>
-                ctx.getSender.sendMessage(Component.text("Only players can use this command"))
+                src.getSender.sendMessage(Component.text("Only players can use this command"))
                 Command.SINGLE_SUCCESS
         }
     }
