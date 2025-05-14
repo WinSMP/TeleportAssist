@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 package org.winlogon.teleportassist
 
-import dev.jorel.commandapi.CommandAPI
 import org.bukkit.plugin.java.JavaPlugin
 
 class TeleportAssist extends JavaPlugin {
