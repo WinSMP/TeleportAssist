@@ -4,12 +4,16 @@ package org.winlogon.teleportassist
 import com.mojang.brigadier.Command
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.arguments.StringArgumentType
+
+import io.papermc.paper.command.brigadier.argument.ArgumentTypes
+import io.papermc.paper.command.brigadier.argument.resolvers.selector.PlayerSelectorArgumentResolver
 import io.papermc.paper.command.brigadier.{Commands, CommandSourceStack}
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents
-import io.papermc.paper.command.brigadier.argument.ArgumentTypes
+
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
+
 import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.{Bukkit, Location}
@@ -33,7 +37,7 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
                             val target = targetResolver.resolve(source).getFirst()
                             tpaCommand(player, target)
                         case _ =>
-                            source.sendMessage(Component.text("Only players can use this command"))
+                            source.getSender.sendMessage(Component.text("Only players can use this command"))
                     }
                     Command.SINGLE_SUCCESS
                 }))
@@ -44,7 +48,7 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
             .`then`(Commands.argument("player", StringArgumentType.word())
                 .executes(ctx => {
                     val playerName = StringArgumentType.getString(ctx, "player")
-                    handleTpAccept(ctx, Bukkit.getPlayer(playerName).toScala)
+                    handleTpAccept(ctx, Option(Bukkit.getPlayer(playerName)))
                 }))
             .build()
 
@@ -80,7 +84,7 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
             .executes(ctx => {
                 ctx.getSource.getExecutor match {
                     case player: Player => backCommand(player)
-                    case _ => ctx.getSender.sendMessage(Component.text("Only players can use this command"))
+                    case _ => ctx.getSource.getSender.sendMessage(Component.text("Only players can use this command"))
                 }
                 Command.SINGLE_SUCCESS
             })
