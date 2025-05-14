@@ -30,63 +30,59 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
     def registerCommands(): Unit = {
         val teleportCommand = Commands.literal("tpa")
             .`then`(Commands.argument("target", ArgumentTypes.player())
+                .requires(source => source.getSender.isInstanceOf[Player])
                 .executes(ctx => {
-                    val source = ctx.getSource
-                    source.getSender match {
-                        case player: Player =>
-                            val targetResolver = ctx.getArgument("target", classOf[PlayerSelectorArgumentResolver])
-                            val target = targetResolver.resolve(source).getFirst()
-                            tpaCommand(player, target)
-                        case _ =>
-                            source.getSender.sendMessage(Component.text("Only players can use this command"))
-                    }
+                    val sourceStack = ctx.getSource
+                    val player = sourceStack.getSender.asInstanceOf[Player]
+                    val targetResolver = ctx.getArgument("target", classOf[PlayerSelectorArgumentResolver])
+                    val target = targetResolver.resolve(sourceStack).getFirst()
+                    tpaCommand(player, target)
                     Command.SINGLE_SUCCESS
                 }))
             .build()
 
         val acceptCommand = Commands.literal("tpaccept")
             .executes(ctx => handleTpAccept(ctx, None))
-            .`then`(Commands.argument("player", StringArgumentType.word())
+            .`then`(Commands.argument("player", ArgumentTypes.player())
+                .requires(source => source.getSender.isInstanceOf[Player])
                 .executes(ctx => {
-                    val playerName = StringArgumentType.getString(ctx, "player")
-                    handleTpAccept(ctx, Option(Bukkit.getPlayer(playerName)))
+                    val sourceStack = ctx.getSource
+                    val targetResolver = ctx.getArgument("player", classOf[PlayerSelectorArgumentResolver])
+                    val target = targetResolver.resolve(sourceStack).getFirst()
+                    handleTpAccept(ctx, Some(target))
                 }))
             .build()
 
         val denyCommand = Commands.literal("tpdeny")
             .executes(ctx => handleTpDeny(ctx, None))
-            .`then`(Commands.argument("player", StringArgumentType.word())
+            .`then`(Commands.argument("player", ArgumentTypes.player())
+                .requires(source => source.getSender.isInstanceOf[Player])
                 .executes(ctx => {
-                    val playerName = StringArgumentType.getString(ctx, "player")
-                    handleTpDeny(ctx, Option(Bukkit.getPlayer(playerName)))
+                    val sourceStack = ctx.getSource
+                    val targetResolver = ctx.getArgument("player", classOf[PlayerSelectorArgumentResolver])
+                    val target = targetResolver.resolve(sourceStack).getFirst()
+                    handleTpDeny(ctx, Some(target))
                 }))
             .build()
 
         val teleportHere = Commands.literal("tpahere")
             .`then`(Commands.argument("target", ArgumentTypes.player())
-                .requires(sender => /* ... */ true)
+                .requires(source => source.getSender.isInstanceOf[Player])
                 .executes(ctx => {
-                    val source = ctx.getSource
-                    source.getSender match {
-                        case player: Player =>
-                            val targetResolver = ctx.getArgument("target", classOf[PlayerSelectorArgumentResolver])
-                            val target = targetResolver.resolve(source).getFirst()
-                            tpaHereCommand(player, target)
-                        case _ =>
-                            source.getExecutor.sendMessage(Component.text("Only players can use this command"))
-                    }
+                    val sourceStack = ctx.getSource
+                    val player = sourceStack.getSender.asInstanceOf[Player]
+                    val targetResolver = ctx.getArgument("target", classOf[PlayerSelectorArgumentResolver])
+                    val target = targetResolver.resolve(sourceStack).getFirst()
+                    tpaHereCommand(player, target)
                     Command.SINGLE_SUCCESS
                 }))
             .build()
 
-        // /back command
         val teleportBackCommand = Commands.literal("tpback")
-            .requires(sender => sender.getExecutor().isInstanceOf[Player] )
+            .requires(source => source.getSender.isInstanceOf[Player])
             .executes(ctx => {
-                ctx.getSource.getExecutor match {
-                    case player: Player => backCommand(player)
-                    case _ => ctx.getSource.getSender.sendMessage(Component.text("Only players can use this command"))
-                }
+                val player = ctx.getSource.getSender.asInstanceOf[Player]
+                backCommand(player)
                 Command.SINGLE_SUCCESS
             })
             .build()
@@ -96,15 +92,14 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
             (event: ReloadableRegistrarEvent[Commands]) => {
                 val registrar = event.registrar()
                 registrar.register(teleportCommand, "Ask to teleport to a player")
-                registrar.register(acceptCommand, "Ask to teleport a player to you")
-                registrar.register(denyCommand, "Accept a player's teleport request")
-                registrar.register(teleportHere, "Deny someone's teleport request")
+                registrar.register(teleportHere, "Ask to teleport a player to you")
+                registrar.register(acceptCommand, "Accept a player's teleport request")
+                registrar.register(denyCommand, "Deny someone's teleport request")
                 registrar.register(teleportBackCommand, "Go back to where you were before teleporting")
             }
         )
     }
 
-    // Helper methods remain the same as original implementation
     private def executeTaskAsync(player: Player, location: Location, task: () => Unit): Unit = {
         if (isFolia) {
             player.getServer.getRegionScheduler.execute(tpaAssist, location, () => task())
@@ -294,7 +289,8 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
             |<click:run_command:'/tpaccept ${player.getName}'><hover:show_text:'<gray>Click to teleport to <dark_aqua><name></dark_aqua>'><green>[Accept]</green></hover></click>
             |<click:run_command:'/tpdeny ${player.getName}'><hover:show_text:'<gray>Click to deny teleport to <dark_aqua><name></dark_aqua>'><red>[Deny]</red></hover></click>""".stripMargin
 
-        target.sendRichMessage(requestMsg, Placeholder.component("name", Component.text(player.getName, NamedTextColor.DARK_AQUA)))
+        val placeholder = Placeholder.component("name", Component.text(player.getName, NamedTextColor.DARK_AQUA))
+        target.sendRichMessage(requestMsg, placeholder)
         player.sendRichMessage(Messages.Notice.TpaHereRequestSent.replace("<target>", target.getName))
         true
     }
