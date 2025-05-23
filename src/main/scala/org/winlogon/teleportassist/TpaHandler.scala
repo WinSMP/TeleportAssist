@@ -13,7 +13,9 @@ import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents
 
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
+import net.kyori.adventure.text.minimessage.tag.standard.StandardTags
 
 import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
@@ -26,6 +28,7 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
     private val tpaNormalRequests = TrieMap.empty[Player, Player]
     private val tpaHereRequests = TrieMap.empty[Player, Player]
     private val playerLocations = TrieMap.empty[Player, Location]
+    private val mm = MiniMessage.miniMessage()
 
     def registerCommands(): Unit = {
         val teleportCommand = Commands.literal("tpa")
@@ -149,7 +152,7 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
             |<click:run_command:'/tpaccept ${player.getName}'><hover:show_text:'<gray>Click to accept teleport request from <dark_aqua><name></dark_aqua>'><green>[Accept]</green></hover></click>
             |<click:run_command:'/tpdeny ${player.getName}'><hover:show_text:'<gray>Click to deny teleport request from <dark_aqua><name></dark_aqua>'><red>[Deny]</red></hover></click>""".stripMargin
 
-        target.sendRichMessage(requestMsg, Placeholder.component("name", Component.text(player.getName, NamedTextColor.DARK_AQUA)))
+        target.sendRichMessage(requestMsg, )
         player.sendRichMessage(Messages.Notice.TpaRequestSent.replace("<target>", target.getName))
         true
     }
@@ -305,6 +308,40 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
                 player.sendRichMessage(Messages.Notice.NoPreviousLocation)
                 false
         }
+    }
+
+    private def makeVerb(message: String): String = {
+        val vrb = message.split(" ").last
+        vrb.substring(0, 1).toUpperCase() + vrb.substring(1);
+    }
+
+    private def makeTeleportRequest(
+        sender: Player,
+        target: Player,
+        tpType: TeleportType
+    ): Component = {
+        val acceptCmd = (s"/tpaccept ${sender.getName}", "Click to accept")
+        val denyCmd = (s"/tpdeny ${sender.getName}", "Click to deny")
+        val intention = tpType match {
+            case TeleportType.Here => "wants you to teleport to them"
+            case TeleportType.Normal => "wants to teleport to you"
+        }
+        val name = Placeholder.component("name", Component.text(player.getName, NamedTextColor.DARK_AQUA))
+
+        val template =
+            s"""
+              |<dark_aqua><name></dark_aqua> <gray>$intention
+              |<click:run_command:'${acceptCmd(0)}'>
+              |  <hover:show_text:'<gray>${acceptCmd(1)}'>
+              |  <green>${makeVerb(acceptCmd(1))}</green>
+              |</hover></click>
+              |<click:run_command:'${denyCmd(0)}'>
+              |  <hover:show_text:'<gray>${denyCmd(1)}'>
+              |  <red>${makeVerb(denyCmd(1))}</red>
+              |</hover></click>
+              |""".stripMargin
+
+        mm.serialize(template, StandardTags.defaults(), name)
     }
 
     private enum TeleportType {
