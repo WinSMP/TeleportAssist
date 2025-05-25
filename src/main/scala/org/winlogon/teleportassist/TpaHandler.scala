@@ -147,12 +147,8 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
 
         tpaNormalRequests.put(target, player)
 
-        val requestMsg =
-            s"""<dark_aqua><name></dark_aqua> <gray>wants to teleport to you.
-            |<click:run_command:'/tpaccept ${player.getName}'><hover:show_text:'<gray>Click to accept teleport request from <dark_aqua><name></dark_aqua>'><green>[Accept]</green></hover></click>
-            |<click:run_command:'/tpdeny ${player.getName}'><hover:show_text:'<gray>Click to deny teleport request from <dark_aqua><name></dark_aqua>'><red>[Deny]</red></hover></click>""".stripMargin
-
-        target.sendRichMessage(requestMsg, )
+        val requestMsg = makeTeleportRequest(player, target, TeleportType.Here)
+        target.sendMessage(requestMsg)
         player.sendRichMessage(Messages.Notice.TpaRequestSent.replace("<target>", target.getName))
         true
     }
@@ -287,13 +283,8 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
 
         tpaHereRequests.put(player, target)
 
-        val requestMsg =
-            s"""<dark_aqua><name></dark_aqua> <gray>wants you to teleport to them.
-            |<click:run_command:'/tpaccept ${player.getName}'><hover:show_text:'<gray>Click to teleport to <dark_aqua><name></dark_aqua>'><green>[Accept]</green></hover></click>
-            |<click:run_command:'/tpdeny ${player.getName}'><hover:show_text:'<gray>Click to deny teleport to <dark_aqua><name></dark_aqua>'><red>[Deny]</red></hover></click>""".stripMargin
-
-        val placeholder = Placeholder.component("name", Component.text(player.getName, NamedTextColor.DARK_AQUA))
-        target.sendRichMessage(requestMsg, placeholder)
+        val requestMsg = makeTeleportRequest(player, target, TeleportType.Normal)
+        target.sendMessage(requestMsg)
         player.sendRichMessage(Messages.Notice.TpaHereRequestSent.replace("<target>", target.getName))
         true
     }
@@ -326,22 +317,22 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
             case TeleportType.Here => "wants you to teleport to them"
             case TeleportType.Normal => "wants to teleport to you"
         }
-        val name = Placeholder.component("name", Component.text(player.getName, NamedTextColor.DARK_AQUA))
+        val name = Placeholder.component("name", Component.text(sender.getName, NamedTextColor.DARK_AQUA))
 
         val template =
             s"""
               |<dark_aqua><name></dark_aqua> <gray>$intention
-              |<click:run_command:'${acceptCmd(0)}'>
-              |  <hover:show_text:'<gray>${acceptCmd(1)}'>
-              |  <green>${makeVerb(acceptCmd(1))}</green>
+              |<click:run_command:'${acceptCmd._1}'>
+              |  <hover:show_text:'<gray>${acceptCmd._2}'>
+              |  <green>${makeVerb(acceptCmd._2)}</green>
               |</hover></click>
-              |<click:run_command:'${denyCmd(0)}'>
-              |  <hover:show_text:'<gray>${denyCmd(1)}'>
-              |  <red>${makeVerb(denyCmd(1))}</red>
+              |<click:run_command:'${denyCmd._1}'>
+              |  <hover:show_text:'<gray>${denyCmd._2}'>
+              |  <red>${makeVerb(denyCmd._2)}</red>
               |</hover></click>
               |""".stripMargin
 
-        mm.serialize(template, StandardTags.defaults(), name)
+        mm.deserialize(template, StandardTags.defaults(), name)
     }
 
     private enum TeleportType {
