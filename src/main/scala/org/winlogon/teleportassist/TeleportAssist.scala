@@ -11,8 +11,11 @@ class TeleportAssist extends JavaPlugin {
         case _: ClassNotFoundException => false
     }
 
+    // keeps track of the players
     private val tpaHandler = new TpaHandler(this, isFolia)
+    // registers commands when this class gets instantiated
     private val commandHandler = new CommandHandler(this, tpaHandler)
+    // removes players when they leave or disconnect
     private val playerRemover = new PlayerRemover(tpaHandler)
 
     override def onEnable(): Unit = {
