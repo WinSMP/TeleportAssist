@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 package org.winlogon.teleportassist
 
+import org.bukkit.entity.Player
+
 import com.mojang.brigadier.Command
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.arguments.StringArgumentType
