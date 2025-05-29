@@ -28,7 +28,7 @@ class CommandHandler(val tpaAssist: TeleportAssist, handler: TpaHandler) {
         .build()
 
     val acceptCommand = Commands.literal("tpaccept")
-        .executes(ctx => handleTpAccept(ctx, None))
+        .executes(ctx => handler.handleTpAccept(ctx, None))
         .`then`(Commands.argument("player", ArgumentTypes.player())
             .requires(source => source.getSender.isInstanceOf[Player])
             .executes(ctx => {
@@ -40,14 +40,14 @@ class CommandHandler(val tpaAssist: TeleportAssist, handler: TpaHandler) {
         .build()
 
     val denyCommand = Commands.literal("tpdeny")
-        .executes(ctx => handleTpDeny(ctx, None))
+        .executes(ctx => handler.handleTpDeny(ctx, None))
         .`then`(Commands.argument("player", ArgumentTypes.player())
             .requires(source => source.getSender.isInstanceOf[Player])
             .executes(ctx => {
                 val sourceStack = ctx.getSource
                 val targetResolver = ctx.getArgument("player", classOf[PlayerSelectorArgumentResolver])
                 val target = targetResolver.resolve(sourceStack).getFirst()
-                handleTpDeny(ctx, Some(target))
+                handler.handleTpDeny(ctx, Some(target))
             }))
         .build()
 

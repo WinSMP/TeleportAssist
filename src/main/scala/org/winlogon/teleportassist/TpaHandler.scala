@@ -223,6 +223,20 @@ class TpaHandler(val tpaAssist: TeleportAssist, val isFolia: Boolean) {
         }
     }
 
+    def removePlayer(player: Player): Unit = {
+        // remove all entries from the map where the player is present in any way
+        def cleanMap(map: TrieMap[Player, Player]): Unit = {
+            val keysToRemove = map.collect {
+                case (k, v) if k == player || v == player => k
+            }
+            keysToRemove.foreach(map.remove)
+        }
+    
+        cleanMap(tpaNormalRequests)
+        cleanMap(tpaHereRequests)
+        playerLocations.remove(player)
+    }
+
     private def makeVerb(message: String): String = {
         val vrb = message.split(" ").last
         vrb.substring(0, 1).toUpperCase() + vrb.substring(1);
