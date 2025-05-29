@@ -3,13 +3,8 @@ package org.winlogon.teleportassist
 
 import com.mojang.brigadier.Command
 import com.mojang.brigadier.context.CommandContext
-import com.mojang.brigadier.arguments.StringArgumentType
 
-import io.papermc.paper.command.brigadier.argument.ArgumentTypes
-import io.papermc.paper.command.brigadier.argument.resolvers.selector.PlayerSelectorArgumentResolver
-import io.papermc.paper.command.brigadier.{Commands, CommandSourceStack}
-import io.papermc.paper.plugin.lifecycle.event.registrar.ReloadableRegistrarEvent
-import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents
+import io.papermc.paper.command.brigadier.CommandSourceStack
 
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
@@ -24,84 +19,11 @@ import org.bukkit.{Bukkit, Location}
 import scala.collection.concurrent.TrieMap
 import scala.jdk.OptionConverters._
 
-class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
+class TpaHandler(val tpaAssist: TeleportAssist, val isFolia: Boolean) {
     private val tpaNormalRequests = TrieMap.empty[Player, Player]
     private val tpaHereRequests = TrieMap.empty[Player, Player]
     private val playerLocations = TrieMap.empty[Player, Location]
     private val mm = MiniMessage.miniMessage()
-
-    def registerCommands(): Unit = {
-        val teleportCommand = Commands.literal("tpa")
-            .`then`(Commands.argument("target", ArgumentTypes.player())
-                .requires(source => source.getSender.isInstanceOf[Player])
-                .executes(ctx => {
-                    val sourceStack = ctx.getSource
-                    val player = sourceStack.getSender.asInstanceOf[Player]
-                    val targetResolver = ctx.getArgument("target", classOf[PlayerSelectorArgumentResolver])
-                    val target = targetResolver.resolve(sourceStack).getFirst()
-                    tpaCommand(player, target)
-                    Command.SINGLE_SUCCESS
-                }))
-            .build()
-
-        val acceptCommand = Commands.literal("tpaccept")
-            .executes(ctx => handleTpAccept(ctx, None))
-            .`then`(Commands.argument("player", ArgumentTypes.player())
-                .requires(source => source.getSender.isInstanceOf[Player])
-                .executes(ctx => {
-                    val sourceStack = ctx.getSource
-                    val targetResolver = ctx.getArgument("player", classOf[PlayerSelectorArgumentResolver])
-                    val target = targetResolver.resolve(sourceStack).getFirst()
-                    handleTpAccept(ctx, Some(target))
-                }))
-            .build()
-
-        val denyCommand = Commands.literal("tpdeny")
-            .executes(ctx => handleTpDeny(ctx, None))
-            .`then`(Commands.argument("player", ArgumentTypes.player())
-                .requires(source => source.getSender.isInstanceOf[Player])
-                .executes(ctx => {
-                    val sourceStack = ctx.getSource
-                    val targetResolver = ctx.getArgument("player", classOf[PlayerSelectorArgumentResolver])
-                    val target = targetResolver.resolve(sourceStack).getFirst()
-                    handleTpDeny(ctx, Some(target))
-                }))
-            .build()
-
-        val teleportHere = Commands.literal("tpahere")
-            .`then`(Commands.argument("target", ArgumentTypes.player())
-                .requires(source => source.getSender.isInstanceOf[Player])
-                .executes(ctx => {
-                    val sourceStack = ctx.getSource
-                    val player = sourceStack.getSender.asInstanceOf[Player]
-                    val targetResolver = ctx.getArgument("target", classOf[PlayerSelectorArgumentResolver])
-                    val target = targetResolver.resolve(sourceStack).getFirst()
-                    tpaHereCommand(player, target)
-                    Command.SINGLE_SUCCESS
-                }))
-            .build()
-
-        val teleportBackCommand = Commands.literal("tpback")
-            .requires(source => source.getSender.isInstanceOf[Player])
-            .executes(ctx => {
-                val player = ctx.getSource.getSender.asInstanceOf[Player]
-                backCommand(player)
-                Command.SINGLE_SUCCESS
-            })
-            .build()
-
-        tpaAssist.getLifecycleManager().registerEventHandler(
-            LifecycleEvents.COMMANDS,
-            (event: ReloadableRegistrarEvent[Commands]) => {
-                val registrar = event.registrar()
-                registrar.register(teleportCommand, "Ask to teleport to a player")
-                registrar.register(teleportHere, "Ask to teleport a player to you")
-                registrar.register(acceptCommand, "Accept a player's teleport request")
-                registrar.register(denyCommand, "Deny someone's teleport request")
-                registrar.register(teleportBackCommand, "Go back to where you were before teleporting")
-            }
-        )
-    }
 
     private def executeTaskAsync(player: Player, location: Location, task: () => Unit): Unit = {
         if (isFolia) {
@@ -129,7 +51,7 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
         }
     }
 
-    private def tpaCommand(player: Player, target: Player): Boolean = {
+    def tpaCommand(player: Player, target: Player): Boolean = {
         if (target == null || !target.isOnline) {
             player.sendRichMessage(Messages.Error.PlayerNotFound)
             return false
@@ -153,7 +75,7 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
         true
     }
 
-    private def handleTpAccept(ctx: CommandContext[CommandSourceStack], target: Option[Player]): Int = {
+    def handleTpAccept(ctx: CommandContext[CommandSourceStack], target: Option[Player]): Int = {
         val src = ctx.getSource
         src.getExecutor match {
             case player: Player =>
@@ -165,7 +87,7 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
         }
     }
 
-    private def handleTpDeny(ctx: CommandContext[CommandSourceStack], target: Option[Player]): Int = {
+    def handleTpDeny(ctx: CommandContext[CommandSourceStack], target: Option[Player]): Int = {
         val src = ctx.getSource
         src.getExecutor match {
             case player: Player =>
@@ -177,7 +99,7 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
         }
     }
 
-    private def tpAcceptCommand(player: Player, requester: Option[Player]): Boolean = {
+    def tpAcceptCommand(player: Player, requester: Option[Player]): Boolean = {
         requester match {
             case Some(r) =>
                 if (tpaNormalRequests.get(player).contains(r)) {
@@ -208,7 +130,7 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
         }
     }
 
-    private def acceptRequest(player: Player, requester: Player, tpType: TeleportType): Unit = {
+    def acceptRequest(player: Player, requester: Player, tpType: TeleportType): Unit = {
         playerLocations.put(requester, requester.getLocation)
 
         tpType match {
@@ -231,7 +153,7 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
         }
     }
 
-    private def tpaDenyCommand(player: Player, requester: Option[Player]): Boolean = {
+    def tpaDenyCommand(player: Player, requester: Option[Player]): Boolean = {
         requester match {
             case Some(r) =>
                 if (tpaNormalRequests.get(player).exists(_ == r)) {
@@ -265,7 +187,7 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
         }
     }
 
-    private def tpaHereCommand(player: Player, target: Player): Boolean = {
+    def tpaHereCommand(player: Player, target: Player): Boolean = {
         if (target == null || !target.isOnline) {
             player.sendRichMessage(Messages.Error.PlayerNotFound)
             return false
@@ -289,7 +211,7 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
         true
     }
 
-    private def backCommand(player: Player): Boolean = {
+    def backCommand(player: Player): Boolean = {
         playerLocations.get(player) match {
             case Some(location) =>
                 teleportAsync(player, location, Messages.Notice.TeleportBackSuccess, "")
@@ -332,10 +254,10 @@ class TpaHandler(tpaAssist: TeleportAssist, isFolia: Boolean) {
               |</hover></click>
               |""".stripMargin
 
-        mm.deserialize(template, StandardTags.defaults(), name)
+        mm.deserialize(template, StandardTags.defaults(), name).compact()
     }
 
-    private enum TeleportType {
+    enum TeleportType {
         case Normal, Here
     }
 }

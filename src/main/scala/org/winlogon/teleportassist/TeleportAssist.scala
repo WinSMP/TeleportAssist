@@ -11,13 +11,15 @@ class TeleportAssist extends JavaPlugin {
         case _: ClassNotFoundException => false
     }
 
-    private val tpaHandler = TpaHandler(this, isFolia)
+    private val tpaHandler = new TpaHandler(this, isFolia)
+    private val commandHandler = new CommandHandler(this, tpaHandler)
+    private val playerRemover = new PlayerRemover(tpaHandler)
 
     override def onEnable(): Unit = {
         getLogger.info(s"TeleportAssist loaded!")
         getLogger.info(s"This server is running on ${if (isFolia) "Folia" else "Paper"}")
-
-        tpaHandler.registerCommands()
+        
+        getServer.getPluginManager.registerEvents(playerRemover, this)
     }
 
     override def onDisable(): Unit = {
