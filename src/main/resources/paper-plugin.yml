@@ -6,10 +6,6 @@ description: 'Paper plugin providing async teleport requests with Folia compatib
 folia-supported: true
 dependencies:
   server:
-    CommandAPI:
-      load: BEFORE
-      required: true
-      join-classpath: true
     ScalaLoader:
       load: BEFORE
       required: true

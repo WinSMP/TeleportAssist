@@ -35,11 +35,10 @@ assembly / assemblyMergeStrategy := {
 assembly / mainClass := Some(mainClassName)
 
 libraryDependencies ++= Seq(
-    "io.papermc.paper" % "paper-api" % "1.21.4-R0.1-SNAPSHOT" % Provided,
-    "dev.jorel" % "commandapi-bukkit-core" % "9.7.0" % Provided
+    "io.papermc.paper" % "paper-api" % "1.21.5-R0.1-SNAPSHOT" % Provided,
 )
 
 resolvers ++= Seq(
     "papermc-repo" at "https://repo.papermc.io/repository/maven-public/",
-    "codemc" at "https://repo.codemc.org/repository/maven-public/"
+    // "codemc" at "https://repo.codemc.org/repository/maven-public/"
 )
