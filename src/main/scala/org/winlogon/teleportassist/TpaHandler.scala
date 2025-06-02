@@ -33,20 +33,40 @@ class TpaHandler(val tpaAssist: TeleportAssist, val isFolia: Boolean) {
         }
     }
 
-    private def teleportAsync(player: Player, location: Location, successMessage: String, notifyMessage: String): Unit = {
+    /**
+      * Asynchronously teleports a player to a specified location with message handling.
+      * This method checks whether the server is running on Folia
+      *
+      * @param teleportingPlayer The player being teleported (non-null)
+      * @param location          The destination location (non-null)
+      * @param successMessage    Message sent to teleporting player upon success (null/empty for none)
+      * @param notifyPlayer      Player who should receive notification (null for none)
+      * @param notifyMessage     Notification message (null/empty for none)
+      */
+    private def teleportAsync(
+        teleportingPlayer: Player, 
+        location: Location, 
+        successMessage: String, 
+        notifyPlayer: Player,
+        notifyMessage: String
+    ): Unit = {
         if (isFolia) {
-            val scheduler = player.getScheduler
+            val scheduler = teleportingPlayer.getScheduler
             scheduler.execute(tpaAssist, () => {
-                player.teleportAsync(location).thenAccept(_ => {
-                    if (successMessage.nonEmpty) player.sendRichMessage(successMessage)
-                    if (notifyMessage.nonEmpty) player.sendRichMessage(notifyMessage)
+                teleportingPlayer.teleportAsync(location).thenAccept(_ => {
+                    if (successMessage.nonEmpty) teleportingPlayer.sendRichMessage(successMessage)
+                    if (notifyMessage.nonEmpty && notifyPlayer != null) {
+                        notifyPlayer.sendRichMessage(notifyMessage)
+                    }
                 })
             }, () => {}, 0L)
         } else {
             Bukkit.getScheduler.runTaskAsynchronously(tpaAssist, () => {
-                player.teleport(location)
-                if (successMessage.nonEmpty) player.sendRichMessage(successMessage)
-                if (notifyMessage.nonEmpty) player.sendRichMessage(notifyMessage)
+                teleportingPlayer.teleport(location)
+                if (successMessage.nonEmpty) teleportingPlayer.sendRichMessage(successMessage)
+                if (notifyMessage.nonEmpty && notifyPlayer != null) {
+                    notifyPlayer.sendRichMessage(notifyMessage)
+                }
             })
         }
     }
@@ -69,7 +89,7 @@ class TpaHandler(val tpaAssist: TeleportAssist, val isFolia: Boolean) {
 
         tpaNormalRequests.put(target, player)
 
-        val requestMsg = makeTeleportRequest(player, target, TeleportType.Here)
+        val requestMsg = makeTeleportRequest(player, target, TeleportType.Normal)
         target.sendMessage(requestMsg)
         player.sendRichMessage(Messages.Notice.TpaRequestSent.replace("<target>", target.getName))
         true
@@ -138,17 +158,15 @@ class TpaHandler(val tpaAssist: TeleportAssist, val isFolia: Boolean) {
                 tpaNormalRequests.remove(player)
                 teleportAsync(
                     requester,
-                    player.getLocation,
-                    Messages.Notice.TeleportSuccess.replace("<player>", player.getName),
-                    Messages.Notice.TeleportHereSuccess.replace("<player>", requester.getName)
+                    player.getLocation, Messages.Notice.TeleportSuccess.replace("<player>", player.getName),
+                    player, Messages.Notice.TeleportHereSuccess.replace("<player>", requester.getName)
                 )
             case TeleportType.Here =>
                 tpaHereRequests.remove(requester)
                 teleportAsync(
-                    player,
-                    requester.getLocation,
-                    Messages.Notice.TeleportHereSuccess.replace("<player>", requester.getName),
-                    Messages.Notice.TeleportSuccess.replace("<player>", player.getName)
+                    player, requester.getLocation,
+                    Messages.Notice.TeleportSuccess.replace("<player>", requester.getName),
+                    requester, Messages.Notice.TeleportHereSuccess.replace("<player>", player.getName)
                 )
         }
     }
@@ -205,7 +223,7 @@ class TpaHandler(val tpaAssist: TeleportAssist, val isFolia: Boolean) {
 
         tpaHereRequests.put(player, target)
 
-        val requestMsg = makeTeleportRequest(player, target, TeleportType.Normal)
+        val requestMsg = makeTeleportRequest(player, target, TeleportType.Here)
         target.sendMessage(requestMsg)
         player.sendRichMessage(Messages.Notice.TpaHereRequestSent.replace("<target>", target.getName))
         true
@@ -214,7 +232,7 @@ class TpaHandler(val tpaAssist: TeleportAssist, val isFolia: Boolean) {
     def backCommand(player: Player): Boolean = {
         playerLocations.get(player) match {
             case Some(location) =>
-                teleportAsync(player, location, Messages.Notice.TeleportBackSuccess, "")
+                teleportAsync(player, location, Messages.Notice.TeleportBackSuccess, null, "")
                 playerLocations.remove(player)
                 true
             case None =>
@@ -250,23 +268,23 @@ class TpaHandler(val tpaAssist: TeleportAssist, val isFolia: Boolean) {
         val acceptCmd = (s"/tpaccept ${sender.getName}", "Click to accept")
         val denyCmd = (s"/tpdeny ${sender.getName}", "Click to deny")
         val intention = tpType match {
-            case TeleportType.Here => "wants you to teleport to them"
-            case TeleportType.Normal => "wants to teleport to you"
+          case TeleportType.Here   => "wants you to teleport to them"
+          case TeleportType.Normal => "wants to teleport to you"
         }
         val name = Placeholder.component("name", Component.text(sender.getName, NamedTextColor.DARK_AQUA))
 
         val template =
-            s"""
-              |<dark_aqua><name></dark_aqua> <gray>$intention
-              |<click:run_command:'${acceptCmd._1}'>
-              |  <hover:show_text:'<gray>${acceptCmd._2}'>
-              |  <green>${makeVerb(acceptCmd._2)}</green>
-              |</hover></click>
-              |<click:run_command:'${denyCmd._1}'>
-              |  <hover:show_text:'<gray>${denyCmd._2}'>
-              |  <red>${makeVerb(denyCmd._2)}</red>
-              |</hover></click>
-              |""".stripMargin
+            // first button - accept
+            s"<dark_aqua><name></dark_aqua> <gray>$intention\n" +
+            s"[<click:run_command:'${acceptCmd._1}'>" +
+            s"<hover:show_text:'<gray>${acceptCmd._2}'>" +
+            s"<green>${makeVerb(acceptCmd._2)}</green>" +
+            s"</hover></click>] " + // a space so the two buttons aren't jammed together
+            // second button - deny
+            s"[<click:run_command:'${denyCmd._1}'>" +
+            s"<hover:show_text:'<gray>${denyCmd._2}'>" +
+            s"<red>${makeVerb(denyCmd._2)}</red>" +
+            s"</hover></click>]"
 
         mm.deserialize(template, StandardTags.defaults(), name).compact()
     }
