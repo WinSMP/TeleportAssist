@@ -73,6 +73,19 @@ class CommandHandler(val tpaAssist: TeleportAssist, handler: TpaHandler) {
         })
         .build()
 
+    val cancelCommand = Commands.literal("tpcancel")
+        .`then`(Commands.argument("player", ArgumentTypes.player())
+            .requires(source => source.getSender.isInstanceOf[Player])
+            .executes(ctx => {
+                val sourceStack = ctx.getSource
+                val player = sourceStack.getSender.asInstanceOf[Player]
+                val targetResolver = ctx.getArgument("player", classOf[PlayerSelectorArgumentResolver])
+                val target = targetResolver.resolve(sourceStack).getFirst()
+                handler.tpaCancelCommand(player, target)
+                Command.SINGLE_SUCCESS
+            }))
+        .build()
+
     tpaAssist.getLifecycleManager().registerEventHandler(
         LifecycleEvents.COMMANDS,
         (event: ReloadableRegistrarEvent[Commands]) => {
@@ -81,6 +94,7 @@ class CommandHandler(val tpaAssist: TeleportAssist, handler: TpaHandler) {
             registrar.register(teleportHere, "Ask to teleport a player to you")
             registrar.register(acceptCommand, "Accept a player's teleport request")
             registrar.register(denyCommand, "Deny someone's teleport request")
+            registrar.register(cancelCommand, "Cancel a teleport request to a player")
             registrar.register(teleportBackCommand, "Go back to where you were before teleporting")
         }
     )

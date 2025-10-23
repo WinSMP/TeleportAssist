@@ -241,6 +241,28 @@ class TpaHandler(val tpaAssist: TeleportAssist, val isFolia: Boolean) {
         }
     }
 
+    def tpaCancelCommand(player: Player, target: Player): Boolean = {
+        if (target == null || !target.isOnline) {
+            player.sendRichMessage(Messages.Error.PlayerNotFound)
+            return false
+        }
+
+        if (tpaNormalRequests.get(target).contains(player)) {
+            tpaNormalRequests.remove(target)
+            player.sendRichMessage(Messages.Notice.TpaRequestCancelled.replace("<target>", target.getName))
+            target.sendRichMessage(Messages.Notice.TpaRequestCancelledByOther.replace("<player>", player.getName))
+            true
+        } else if (tpaHereRequests.get(player).contains(target)) {
+            tpaHereRequests.remove(player)
+            player.sendRichMessage(Messages.Notice.TpaRequestCancelled.replace("<target>", target.getName))
+            target.sendRichMessage(Messages.Notice.TpaRequestCancelledByOther.replace("<player>", player.getName))
+            true
+        } else {
+            player.sendRichMessage(Messages.Error.NoRequestToCancel.replace("<target>", target.getName))
+            false
+        }
+    }
+
     def removePlayer(player: Player): Unit = {
         // remove all entries from the map where the player is present in any way
         def cleanMap(map: TrieMap[Player, Player]): Unit = {
