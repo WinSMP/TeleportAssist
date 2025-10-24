@@ -35,10 +35,22 @@ assembly / assemblyMergeStrategy := {
 assembly / mainClass := Some(mainClassName)
 
 libraryDependencies ++= Seq(
-    "io.papermc.paper" % "paper-api" % "1.21.5-R0.1-SNAPSHOT" % Provided,
+    "io.papermc.paper" % "paper-api" % "1.21.8-R0.1-SNAPSHOT" % Provided,
+    "org.mockbukkit.mockbukkit" % "mockbukkit-v1.21" % "4.89.0" % Test,
+    "org.junit.jupiter" % "junit-jupiter-api" % "5.9.1" % Test,
+    "org.junit.jupiter" % "junit-jupiter-engine" % "5.9.1" % Test,
+    "net.aichler" % "jupiter-interface" % "0.9.0" % Test
 )
 
 resolvers ++= Seq(
     "papermc-repo" at "https://repo.papermc.io/repository/maven-public/",
     // "codemc" at "https://repo.codemc.org/repository/maven-public/"
+)
+
+dependencyOverrides ++= Seq(
+  "org.junit.jupiter" % "junit-jupiter-api" % "5.9.1",
+  "org.junit.jupiter" % "junit-jupiter-engine" % "5.9.1",
+  "org.junit.platform" % "junit-platform-commons" % "1.9.1",
+  "org.junit.platform" % "junit-platform-engine" % "1.9.1",
+  "org.junit.platform" % "junit-platform-launcher" % "1.9.1"
 )
