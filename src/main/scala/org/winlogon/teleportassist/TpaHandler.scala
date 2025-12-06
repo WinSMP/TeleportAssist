@@ -61,8 +61,7 @@ class TpaHandler(val tpaAssist: TeleportAssist, val isFolia: Boolean) {
                 })
             }, () => {}, 0L)
         } else {
-            Bukkit.getScheduler.runTaskAsynchronously(tpaAssist, () => {
-                teleportingPlayer.teleport(location)
+            teleportingPlayer.teleportAsync(location).thenAccept(_ => {
                 if (successMessage.nonEmpty) teleportingPlayer.sendRichMessage(successMessage)
                 if (notifyMessage.nonEmpty && notifyPlayer != null) {
                     notifyPlayer.sendRichMessage(notifyMessage)
