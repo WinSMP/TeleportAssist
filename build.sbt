@@ -3,7 +3,7 @@ import sbtassembly.AssemblyPlugin.defaultShellScript
 
 lazy val scalaVer = "3.3.5"
 lazy val orgName = "org.winlogon"
-lazy val projectVersion = "0.2.0"
+lazy val projectVersion = "0.3.0"
 lazy val projectName = "TeleportAssist"
 lazy val mainClassName = s"$orgName.teleportassist.$projectName"
 
