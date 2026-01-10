@@ -1,0 +1,7 @@
+name: '${NAME}'
+version: '${VERSION}'
+main: '${MAIN_CLASS}'
+loader: '${PACKAGE}.ScalaLoader'
+api-version: '${API_VERSION}'
+description: 'Paper plugin providing async teleport requests with Folia compatibility'
+folia-supported: true
