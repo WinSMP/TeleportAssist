@@ -23,7 +23,7 @@ class ScalaLoader extends PluginLoader {
 
         resolver.addDependency(
             Dependency(
-                DefaultArtifact("org.scala-lang:scala3-library_3:$scalaVersion"),
+                DefaultArtifact(s"org.scala-lang:scala3-library_3:$scalaVersion"),
                 null
             )
         )

@@ -1,33 +1,33 @@
 lazy val scalaVer = "3.3.5"
 
 // Identifiers used to construct fully-qualified class names
-lazy val orgName = "org.winlogon"
-lazy val packageName = s"$orgName.teleportassist"
-lazy val mainClassName = s"$packageName.$projectName"
+lazy val orgName =          "org.winlogon"
+lazy val packageName =      s"$orgName.teleportassist"
+lazy val mainClassName =    s"$packageName.$projectName"
 
 // Project metadata used for builds, publishing, and resource generation
-lazy val projectName = "TeleportAssist"
-lazy val projectVersion = "0.3.0"
+lazy val projectName =      "TeleportAssist"
+lazy val projectVersion =   "0.3.0"
 lazy val minecraftVersion = "1.21.6"
 
-ThisBuild / name := projectName
+ThisBuild / name :=         projectName
 ThisBuild / scalaVersion := scalaVer
-ThisBuild / version := projectVersion
+ThisBuild / version :=      projectVersion
 ThisBuild / organization := orgName
 ThisBuild / organizationName := "WinSMP"
-Compile / mainClass := Some(mainClassName)
+Compile / mainClass :=      Some(mainClassName)
 
 Compile / resourceGenerators += Def.task {
     val log = streams.value.log
 
-    val templateFile = (Compile / resourceDirectory).value / "paper-plugin.yml.template"
-    val outputDir    = (Compile / resourceManaged).value
+    val templateFile    = (Compile / resourceDirectory).value / "paper-plugin.yml.template"
+    val outputDir       = (Compile / resourceManaged).value
     IO.createDirectory(outputDir)
-    val outputFile   = outputDir / "paper-plugin.yml"
+    val outputFile      = outputDir / "paper-plugin.yml"
 
     val replacements = Map(
         "VERSION"     -> version.value,
-        "NAME"        -> name.value,
+        "NAME"        -> projectName,
         "MAIN_CLASS"  -> mainClassName,
         "API_VERSION" -> minecraftVersion,
         "PACKAGE"     -> packageName
