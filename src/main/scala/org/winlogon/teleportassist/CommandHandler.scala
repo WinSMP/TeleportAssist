@@ -5,7 +5,6 @@ import org.bukkit.entity.Player
 
 import com.mojang.brigadier.Command
 import com.mojang.brigadier.context.CommandContext
-import com.mojang.brigadier.arguments.StringArgumentType
 
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes
 import io.papermc.paper.command.brigadier.argument.resolvers.selector.PlayerSelectorArgumentResolver
@@ -18,36 +17,30 @@ class CommandHandler(val tpaAssist: TeleportAssist, handler: TpaHandler) {
         .`then`(Commands.argument("target", ArgumentTypes.player())
             .requires(source => source.getSender.isInstanceOf[Player])
             .executes(ctx => {
-                val sourceStack = ctx.getSource
-                val player = sourceStack.getSender.asInstanceOf[Player]
-                val targetResolver = ctx.getArgument("target", classOf[PlayerSelectorArgumentResolver])
-                val target = targetResolver.resolve(sourceStack).getFirst()
+                val (player, target) = playerArgument(ctx, "target")
                 handler.tpaCommand(player, target)
                 Command.SINGLE_SUCCESS
             }))
         .build()
 
     val acceptCommand = Commands.literal("tpaccept")
-        .executes(ctx => handler.handleTpAccept(ctx, None))
+        .executes(ctx => handler.tpAcceptCommand(ctx, None))
         .`then`(Commands.argument("player", ArgumentTypes.player())
             .requires(source => source.getSender.isInstanceOf[Player])
             .executes(ctx => {
-                val sourceStack = ctx.getSource
-                val targetResolver = ctx.getArgument("player", classOf[PlayerSelectorArgumentResolver])
-                val target = targetResolver.resolve(sourceStack).getFirst()
-                handler.handleTpAccept(ctx, Some(target))
+                val (_, target) = playerArgument(ctx, "player")
+                handler.tpAcceptCommand(ctx, Some(target))
             }))
         .build()
 
     val denyCommand = Commands.literal("tpdeny")
-        .executes(ctx => handler.handleTpDeny(ctx, None))
+        .executes(ctx => handler.tpaDenyCommand(ctx, None))
         .`then`(Commands.argument("player", ArgumentTypes.player())
             .requires(source => source.getSender.isInstanceOf[Player])
             .executes(ctx => {
-                val sourceStack = ctx.getSource
-                val targetResolver = ctx.getArgument("player", classOf[PlayerSelectorArgumentResolver])
-                val target = targetResolver.resolve(sourceStack).getFirst()
-                handler.handleTpDeny(ctx, Some(target))
+                val (_, target) = playerArgument(ctx, "player")
+                handler.tpaDenyCommand(ctx, Some(target))
+                
             }))
         .build()
 
@@ -55,10 +48,7 @@ class CommandHandler(val tpaAssist: TeleportAssist, handler: TpaHandler) {
         .`then`(Commands.argument("target", ArgumentTypes.player())
             .requires(source => source.getSender.isInstanceOf[Player])
             .executes(ctx => {
-                val sourceStack = ctx.getSource
-                val player = sourceStack.getSender.asInstanceOf[Player]
-                val targetResolver = ctx.getArgument("target", classOf[PlayerSelectorArgumentResolver])
-                val target = targetResolver.resolve(sourceStack).getFirst()
+                val (player, target) = playerArgument(ctx, "target")
                 handler.tpaHereCommand(player, target)
                 Command.SINGLE_SUCCESS
             }))
@@ -77,16 +67,13 @@ class CommandHandler(val tpaAssist: TeleportAssist, handler: TpaHandler) {
         .`then`(Commands.argument("player", ArgumentTypes.player())
             .requires(source => source.getSender.isInstanceOf[Player])
             .executes(ctx => {
-                val sourceStack = ctx.getSource
-                val player = sourceStack.getSender.asInstanceOf[Player]
-                val targetResolver = ctx.getArgument("player", classOf[PlayerSelectorArgumentResolver])
-                val target = targetResolver.resolve(sourceStack).getFirst()
+                val (player, target) = playerArgument(ctx, "player")
                 handler.tpaCancelCommand(player, target)
                 Command.SINGLE_SUCCESS
             }))
         .build()
 
-    tpaAssist.getLifecycleManager().registerEventHandler(
+    tpaAssist.getLifecycleManager.registerEventHandler(
         LifecycleEvents.COMMANDS,
         (event: ReloadableRegistrarEvent[Commands]) => {
             val registrar = event.registrar()
@@ -98,4 +85,18 @@ class CommandHandler(val tpaAssist: TeleportAssist, handler: TpaHandler) {
             registrar.register(teleportBackCommand, "Go back to where you were before teleporting")
         }
     )
+
+    /**
+     * Gets both the player (command sender) and the target [[Player]] from the [[CommandContext]]
+     * @param ctx The command context
+     * @param argument The argument name for the target
+     * @return A tuple containing the player and target
+     */
+    private def playerArgument(ctx: CommandContext[CommandSourceStack], argument: String): (Player, Player) = {
+        val sourceStack = ctx.getSource
+        val player = sourceStack.getSender.asInstanceOf[Player]
+        val targetResolver = ctx.getArgument(argument, classOf[PlayerSelectorArgumentResolver])
+
+        (player, targetResolver.resolve(sourceStack).getFirst)
+    }
 }

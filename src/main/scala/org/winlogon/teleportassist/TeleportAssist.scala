@@ -3,8 +3,10 @@ package org.winlogon.teleportassist
 
 import org.bukkit.plugin.java.JavaPlugin
 
+import java.util.logging.Logger
+
 class TeleportAssist extends JavaPlugin {
-    private val isFolia: Boolean = try {
+    private lazy val isFolia: Boolean = try {
         Class.forName("io.papermc.paper.threadedregions.RegionizedServer")
         true
     } catch {
@@ -12,20 +14,30 @@ class TeleportAssist extends JavaPlugin {
     }
 
     // keeps track of the players
-    private val tpaHandler = new TpaHandler(this, isFolia)
+    private var tpaHandler: TpaHandler = _
     // registers commands when this class gets instantiated
-    private val commandHandler = new CommandHandler(this, tpaHandler)
+    private var commandHandler: CommandHandler = _
     // removes players when they leave or disconnect
-    private val playerRemover = new PlayerRemover(tpaHandler)
+    private var playerRemover: PlayerRemover = _
+    private var logger: Logger = _
+
+    override def onLoad(): Unit = {
+        tpaHandler = TpaHandler(this, isFolia)
+        commandHandler = CommandHandler(this, tpaHandler)
+        playerRemover = PlayerRemover(tpaHandler)
+        logger = getLogger
+    }
 
     override def onEnable(): Unit = {
-        getLogger.info(s"TeleportAssist loaded!")
-        getLogger.info(s"This server is running on ${if (isFolia) "Folia" else "Paper"}")
-        
+        logger.info("TeleportAssist loaded!")
+
+        val mcVersion = getServer.getMinecraftVersion
+        logger.info(s"This server is running on ${if (isFolia) "Folia" else "Paper"} $mcVersion")
+
         getServer.getPluginManager.registerEvents(playerRemover, this)
     }
 
     override def onDisable(): Unit = {
-        getLogger.info("TeleportAssist disabled!")
+        logger.info("TeleportAssist disabled!")
     }
 }
