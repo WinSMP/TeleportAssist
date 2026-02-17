@@ -3,5 +3,12 @@ version: '${VERSION}'
 main: '${MAIN_CLASS}'
 loader: '${PACKAGE}.ScalaLoader'
 api-version: '${API_VERSION}'
-description: 'Paper plugin providing async teleport requests with Folia compatibility'
+description: 'Teleport requests, warps, spawn, and back — all with Folia support'
 folia-supported: true
+permissions:
+  teleportassist.warp.admin:
+    description: Create, edit, and delete warps
+    default: op
+  teleportassist.spawn.admin:
+    description: Set spawn location
+    default: op

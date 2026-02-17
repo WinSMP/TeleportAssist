@@ -22,11 +22,6 @@ TeleportAssist is a Minecraft plugin designed for Minecraft servers that allows 
 
 The plugin does not require any configuration files. It automatically detects if the server is running on Folia or Paper and adjusts its behavior accordingly.
 
-## Acknowledgments
-
-- Thanks to the Bukkit community for their support and resources.
-- Special thanks to the developers of Folia and Paper for their contributions to the Minecraft server ecosystem.
-
 ## Contact
 
 For issues, feature requests, or contributions, please open an issue on the project's repository or contact the developer directly.

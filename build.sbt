@@ -1,14 +1,15 @@
-lazy val scalaVer = "3.3.5"
+lazy val scalaVer = "3.3.7"
 
-// Identifiers used to construct fully-qualified class names
 lazy val orgName =          "org.winlogon"
 lazy val packageName =      s"$orgName.teleportassist"
 lazy val mainClassName =    s"$packageName.$projectName"
 
-// Project metadata used for builds, publishing, and resource generation
 lazy val projectName =      "TeleportAssist"
-lazy val projectVersion =   "0.3.0"
-lazy val minecraftVersion = "1.21.6"
+lazy val projectVersion =   "0.4.0"
+lazy val paperApiDep =      "26.1.2.build.69-stable"
+lazy val apiVersion =       "1.21"
+lazy val sqliteVersion =    "3.49.1.0"
+lazy val asyncCraftrVersion = "0.2.0"
 
 ThisBuild / name :=         projectName
 ThisBuild / scalaVersion := scalaVer
@@ -29,7 +30,7 @@ Compile / resourceGenerators += Def.task {
         "VERSION"     -> version.value,
         "NAME"        -> projectName,
         "MAIN_CLASS"  -> mainClassName,
-        "API_VERSION" -> minecraftVersion,
+        "API_VERSION" -> apiVersion,
         "PACKAGE"     -> packageName
     )
 
@@ -44,30 +45,18 @@ Compile / resourceGenerators += Def.task {
     Seq(outputFile)
 }.taskValue
 
-// GitHub CI
-ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("21"))
 ThisBuild / publishTo := None
 publish / skip := true
 
 crossScalaVersions := Seq(scalaVer)
 
-lazy val root = (project in file("."))
-    .settings(
-        assembly / assemblyOption := (assembly / assemblyOption).value.withIncludeScala(false)
-    )
-
-// Merge strategy for avoiding conflicts in dependencies
-assembly / assemblyMergeStrategy := {
-    case PathList("META-INF", xs @ _*) => MergeStrategy.discard
-    case _                             => MergeStrategy.first
-}
-
-assembly / mainClass := Some(mainClassName)
-
 libraryDependencies ++= Seq(
-    "io.papermc.paper" % "paper-api" % s"$minecraftVersion-R0.1-SNAPSHOT" % Provided,
+    "io.papermc.paper" % "paper-api" % paperApiDep % Provided,
+    "org.xerial" % "sqlite-jdbc" % sqliteVersion % Provided,
+    "org.winlogon" % "asynccraftr" % asyncCraftrVersion % Provided
 )
 
 resolvers ++= Seq(
     "papermc-repo" at "https://repo.papermc.io/repository/maven-public/",
+    "winlogon-code-releases" at "https://maven.winlogon.org/releases",
 )

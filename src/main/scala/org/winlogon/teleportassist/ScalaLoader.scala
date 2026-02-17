@@ -10,23 +10,32 @@ import org.eclipse.aether.repository.RemoteRepository
 
 class ScalaLoader extends PluginLoader {
     override def classloader(classpathBuilder: PluginClasspathBuilder) = {
-        val scalaVersion = "3.3.5"
-
         val resolver = MavenLibraryResolver()
 
         resolver.addRepository(
             RemoteRepository.Builder(
-                "central",
-                "default",
+                "central", "default",
                 MavenLibraryResolver.MAVEN_CENTRAL_DEFAULT_MIRROR
             ).build()
         )
 
+        resolver.addRepository(
+            RemoteRepository.Builder(
+                "winlogon-code-releases", "default",
+                "https://maven.winlogon.org/releases"
+            ).build()
+        )
+
         resolver.addDependency(
-            Dependency(
-                DefaultArtifact(s"org.scala-lang:scala3-library_3:$scalaVersion"),
-                null
-            )
+            Dependency(DefaultArtifact("org.scala-lang:scala3-library_3:3.3.7"), null)
+        )
+
+        resolver.addDependency(
+            Dependency(DefaultArtifact("org.xerial:sqlite-jdbc:3.49.1.0"), null)
+        )
+
+        resolver.addDependency(
+            Dependency(DefaultArtifact("org.winlogon:asynccraftr:0.2.0"), null)
         )
 
         classpathBuilder.addLibrary(resolver)
