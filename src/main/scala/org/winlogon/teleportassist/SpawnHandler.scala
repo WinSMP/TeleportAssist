@@ -12,11 +12,13 @@ class SpawnHandler(
     teleportService: TeleportService,
     scheduler: Scheduler
 ) {
+    /** Sets the world spawn to the player's current location. */
     def setSpawn(player: Player): Unit = {
         database.setSpawn(player.getLocation)
         player.sendBuiltinMessage(Messages.Notice.SpawnSet, "name" -> player.getWorld.getName)
     }
 
+    /** Teleports the player to the world's configured spawn location with warmup. */
     def teleportToSpawn(player: Player): Unit = {
         database.getSpawn(player.getWorld.getName) match {
             case Some(spawn) =>

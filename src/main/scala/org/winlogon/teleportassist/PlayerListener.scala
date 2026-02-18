@@ -11,6 +11,7 @@ class PlayerListener(
     scheduler: Scheduler
 ) extends Listener {
 
+    /** Cleans up warmup and pending requests when a player leaves. */
     @EventHandler
     def onPlayerQuit(event: PlayerQuitEvent): Unit = {
         val player = event.getPlayer
@@ -18,11 +19,13 @@ class PlayerListener(
         tpaHandler.removePlayer(player)
     }
 
+    /** Saves the death location to the database for /back. */
     @EventHandler
     def onPlayerDeath(event: PlayerDeathEvent): Unit = {
         database.saveDeathLocation(event.getPlayer.getUniqueId, event.getPlayer.getLocation)
     }
 
+    /** Cancels warmup if the player moves more than a negligible amount. */
     @EventHandler
     def onPlayerMove(event: PlayerMoveEvent): Unit = {
         val to = event.getTo
@@ -36,6 +39,7 @@ class PlayerListener(
             scheduler.checkMovement(player)
     }
 
+    /** Cancels warmup when a player takes damage. */
     @EventHandler
     def onPlayerDamage(event: EntityDamageEvent): Unit = {
         event.getEntity match {

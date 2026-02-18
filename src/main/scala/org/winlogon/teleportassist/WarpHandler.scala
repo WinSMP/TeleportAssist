@@ -18,6 +18,7 @@ class WarpHandler(
     teleportService: TeleportService,
     scheduler: Scheduler
 ) {
+    /** Creates a new warp at the player's current location if the name is available. */
     def createWarp(player: Player, name: String): Unit = {
         if (database.getWarp(name).isDefined) {
             player.sendBuiltinMessage(Messages.Error.WarpAlreadyExists, "name" -> name)
@@ -27,6 +28,7 @@ class WarpHandler(
         player.sendBuiltinMessage(Messages.Notice.WarpCreated, "name" -> name)
     }
 
+    /** Removes a warp by name. */
     def removeWarp(player: Player, name: String): Unit = {
         if (database.removeWarp(name)) {
             player.sendBuiltinMessage(Messages.Notice.WarpRemoved, "name" -> name)
@@ -35,6 +37,7 @@ class WarpHandler(
         }
     }
 
+    /** Updates a warp's location to the player's current position. */
     def editWarp(player: Player, name: String): Unit = {
         if (database.updateWarp(name, player.getLocation)) {
             player.sendBuiltinMessage(Messages.Notice.WarpUpdated, "name" -> name)
@@ -43,6 +46,7 @@ class WarpHandler(
         }
     }
 
+    /** Teleports the player to the named warp with warmup. */
     def teleportToWarp(player: Player, name: String): Unit = {
         database.getWarp(name) match {
             case Some(warp) =>
@@ -62,6 +66,7 @@ class WarpHandler(
         }
     }
 
+    /** Sends the player a comma-separated list of all warps. */
     def listWarps(player: Player): Unit = {
         val warps = database.listWarps()
         if (warps.isEmpty) {

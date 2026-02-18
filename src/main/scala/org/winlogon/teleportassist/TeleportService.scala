@@ -11,6 +11,7 @@ import org.bukkit.Location
 import java.util.concurrent.ConcurrentHashMap
 
 class TeleportService(plugin: TeleportAssist) {
+    /** Teleports a player asynchronously, sending success/notify messages on arrival. */
     def teleportAsync(
         teleportingPlayer: Player,
         location: Location,
@@ -28,6 +29,7 @@ class TeleportService(plugin: TeleportAssist) {
         })
     }
 
+    /** Teleports a player with configurable warmup, bypassable via permission. */
     def teleportWithWarmup(
         player: Player,
         destination: Location,

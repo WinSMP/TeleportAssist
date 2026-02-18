@@ -21,6 +21,7 @@ class TpaHandler(
     private val tpaNormalRequests = TrieMap.empty[Player, Player]
     private val tpaHereRequests = TrieMap.empty[Player, Player]
 
+    /** Sends a /tpa request from player to target. */
     def tpaCommand(player: Player, target: Player): Unit = {
         if (target == null || !target.isOnline) {
             player.sendBuiltinMessage(Messages.Error.PlayerNotFound)
@@ -44,6 +45,7 @@ class TpaHandler(
         player.sendBuiltinMessage(Messages.Notice.TpaRequestSent, "target" -> target.getName)
     }
 
+    /** Builds the interactive teleport request component for the target player. */
     private def makeTeleportRequest(sender: Player, target: Player, tpType: TeleportType): Component = {
         val intention = if (tpType == TeleportType.Normal)
             "wants to teleport to you"
@@ -52,6 +54,7 @@ class TpaHandler(
         Messages.makeTeleportRequest(sender, intention)
     }
 
+    /** Brigadier handler for /tpaccept - resolves the sender and delegates. */
     def tpAcceptCommand(ctx: CommandContext[CommandSourceStack], target: Option[Player]): Int = {
         val src = ctx.getSource
         src.getExecutor match {
@@ -63,6 +66,7 @@ class TpaHandler(
         Command.SINGLE_SUCCESS
     }
 
+    /** Resolves a pending request and executes the accept logic. */
     def handleTpAccept(player: Player, requester: Option[Player]): Unit = {
         val resolved: Option[(Player, TeleportType)] = {
             requester.flatMap { r =>
@@ -85,6 +89,7 @@ class TpaHandler(
         }
     }
 
+    /** Brigadier handler for /tpdeny - resolves the sender and delegates. */
     def tpaDenyCommand(ctx: CommandContext[CommandSourceStack], target: Option[Player]): Int = {
         val src = ctx.getSource
         src.getExecutor match {
@@ -96,6 +101,7 @@ class TpaHandler(
         Command.SINGLE_SUCCESS
     }
 
+    /** Resolves a pending request and executes the deny logic. */
     def handleTpDeny(player: Player, requester: Option[Player]): Unit = {
         requester match {
             case Some(r) =>
@@ -124,6 +130,7 @@ class TpaHandler(
         }
     }
 
+    /** Executes the teleport after a /tpaccept - teleports the requester (Normal) or the acceptor (Here). */
     def acceptRequest(acceptor: Player, requester: Player, tpType: TeleportType): Unit = {
         tpType match {
             case TeleportType.Normal =>
@@ -149,6 +156,7 @@ class TpaHandler(
         }
     }
 
+    /** Sends a /tpahere request - asks target to teleport to the sender. */
     def tpaHereCommand(player: Player, target: Player): Unit = {
         if (target == null || !target.isOnline) {
             player.sendBuiltinMessage(Messages.Error.PlayerNotFound)
@@ -172,6 +180,7 @@ class TpaHandler(
         player.sendBuiltinMessage(Messages.Notice.TpaHereRequestSent, "target" -> target.getName)
     }
 
+    /** Cancels an outgoing tpa or tpahere request to the given target. */
     def tpaCancelCommand(player: Player, target: Player): Unit = {
         if (target == null || !target.isOnline) {
             player.sendBuiltinMessage(Messages.Error.PlayerNotFound)
@@ -191,7 +200,9 @@ class TpaHandler(
         }
     }
 
+    /** Removes all pending requests involving the given player (e.g. on quit). */
     def removePlayer(player: Player): Unit = {
+        /** Removes all entries where the player is either key or value. */
         def cleanMap(map: TrieMap[Player, Player]): Unit = {
             val keysToRemove = map.collect {
                 case (k, v) if k == player || v == player => k

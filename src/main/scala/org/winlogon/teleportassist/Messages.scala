@@ -12,9 +12,11 @@ import org.bukkit.entity.Player
 object Messages {
     private val mm = MiniMessage.miniMessage()
 
+    /** Deserializes a MiniMessage string with optional placeholders into a Component. */
     def format(template: String, placeholders: (String, String)*): Component =
         mm.deserialize(template, placeholders.map((k, v) => Placeholder.unparsed(k, v)): _*)
 
+    /** Formats a MiniMessage template with placeholders and sends it to the player. */
     extension (player: Player)
         def sendBuiltinMessage(template: String, placeholders: (String, String)*): Unit =
             player.sendMessage(format(template, placeholders: _*))

@@ -35,12 +35,14 @@ class Database(dataFolder: File) {
     private var connection: Connection = _
     private val dbFile = File(dataFolder, "teleportassist.db")
 
+    /** Opens the SQLite connection and creates tables if they do not exist. */
     def init(): Unit = {
         Class.forName("org.sqlite.JDBC")
         connection = DriverManager.getConnection(s"jdbc:sqlite:${dbFile.getAbsolutePath}")
         createTables()
     }
 
+    /** Runs CREATE TABLE IF NOT EXISTS for warps, death_locations, and spawn_locations. */
     private def createTables(): Unit = {
         val stmt = connection.createStatement()
         stmt.execute(
@@ -83,6 +85,7 @@ class Database(dataFolder: File) {
         stmt.close()
     }
 
+    /** Closes the database connection if open. */
     def close(): Unit = {
         if (connection != null && !connection.isClosed)
             connection.close()
@@ -90,6 +93,7 @@ class Database(dataFolder: File) {
 
     // Warps
 
+    /** Inserts a new warp into the database. Returns true on success. */
     def createWarp(name: String, loc: Location, owner: Option[UUID] = None): Boolean = {
         val stmt = connection.prepareStatement(
             """INSERT INTO warps (name, world, x, y, z, yaw, pitch, owner, is_public, created_at)
@@ -105,6 +109,7 @@ class Database(dataFolder: File) {
         result > 0
     }
 
+    /** Deletes a warp by name. Returns true if a row was deleted. */
     def removeWarp(name: String): Boolean = {
         val stmt = connection.prepareStatement("DELETE FROM warps WHERE name = ?")
         stmt.setString(1, name)
@@ -113,6 +118,7 @@ class Database(dataFolder: File) {
         result > 0
     }
 
+    /** Fetches a single warp by name. */
     def getWarp(name: String): Option[WarpData] = {
         val stmt = connection.prepareStatement("SELECT * FROM warps WHERE name = ?")
         stmt.setString(1, name)
@@ -122,6 +128,7 @@ class Database(dataFolder: File) {
         result
     }
 
+    /** Returns all warp names, sorted alphabetically. */
     def listWarps(): Seq[String] = {
         val stmt = connection.createStatement()
         val rs = stmt.executeQuery("SELECT name FROM warps ORDER BY name")
@@ -130,6 +137,7 @@ class Database(dataFolder: File) {
         names
     }
 
+    /** Returns all warps with full data. */
     def getAllWarps(): Seq[WarpData] = {
         val stmt = connection.createStatement()
         val rs = stmt.executeQuery("SELECT * FROM warps ORDER BY name")
@@ -138,6 +146,7 @@ class Database(dataFolder: File) {
         warps
     }
 
+    /** Updates a warp's location. Returns true if a row was updated. */
     def updateWarp(name: String, loc: Location): Boolean = {
         val stmt = connection.prepareStatement(
             "UPDATE warps SET world = ?, x = ?, y = ?, z = ?, yaw = ?, pitch = ? WHERE name = ?"
@@ -149,6 +158,7 @@ class Database(dataFolder: File) {
         result > 0
     }
 
+    /** Reads a WarpData from the current ResultSet row. */
     private def readWarp(rs: ResultSet): WarpData = WarpData(
         rs.getString("name"),
         rs.getString("world"),
@@ -164,6 +174,7 @@ class Database(dataFolder: File) {
 
     // Death Locations
 
+    /** Inserts or replaces a death location record for the player. */
     def saveDeathLocation(player: UUID, loc: Location): Unit = {
         val stmt = connection.prepareStatement(
             """INSERT OR REPLACE INTO death_locations (player, world, x, y, z, yaw, pitch, timestamp)
@@ -176,6 +187,7 @@ class Database(dataFolder: File) {
         stmt.close()
     }
 
+    /** Fetches the most recent death location for a player. */
     def getLatestDeathLocation(player: UUID): Option[DeathLocationData] = {
         val stmt = connection.prepareStatement(
             "SELECT * FROM death_locations WHERE player = ? ORDER BY timestamp DESC LIMIT 1"
@@ -195,6 +207,7 @@ class Database(dataFolder: File) {
 
     // Spawn Locations
 
+    /** Sets or updates the spawn location for the world the Location belongs to. */
     def setSpawn(loc: Location): Unit = {
         val stmt = connection.prepareStatement(
             """INSERT OR REPLACE INTO spawn_locations (world, x, y, z, yaw, pitch)
@@ -205,6 +218,7 @@ class Database(dataFolder: File) {
         stmt.close()
     }
 
+    /** Fetches the spawn location for a given world name. */
     def getSpawn(worldName: String): Option[SpawnData] = {
         val stmt = connection.prepareStatement("SELECT * FROM spawn_locations WHERE world = ?")
         stmt.setString(1, worldName)
@@ -218,9 +232,11 @@ class Database(dataFolder: File) {
         result
     }
 
+    /** True if the database connection is open. */
     def isConnected: Boolean =
         connection != null && !connection.isClosed
 
+    /** Binds location fields (world, x, y, z, yaw, pitch) starting at the given index. */
     private def bindLocation(stmt: PreparedStatement, idx: Int, loc: Location): Unit = {
         stmt.setString(idx, loc.getWorld.getName)
         stmt.setDouble(idx + 1, loc.getX)

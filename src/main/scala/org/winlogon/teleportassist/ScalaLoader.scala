@@ -9,6 +9,7 @@ import org.eclipse.aether.graph.Dependency
 import org.eclipse.aether.repository.RemoteRepository
 
 class ScalaLoader extends PluginLoader {
+    /** Adds Scala stdlib, SQLite JDBC, and AsyncCraftr to the plugin classpath at load time. */
     override def classloader(classpathBuilder: PluginClasspathBuilder) = {
         val resolver = MavenLibraryResolver()
 

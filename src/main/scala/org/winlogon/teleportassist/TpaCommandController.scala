@@ -72,6 +72,7 @@ class TpaCommandController(plugin: TeleportAssist, tpaHandler: TpaHandler) {
         }
     )
 
+    /** Extracts the sender and a resolved player argument from the command context. */
     private def playerArgument(ctx: CommandContext[CommandSourceStack], argument: String): (org.bukkit.entity.Player, org.bukkit.entity.Player) = {
         val sourceStack = ctx.getSource
         val player = sourceStack.getSender.asInstanceOf[org.bukkit.entity.Player]

@@ -17,14 +17,18 @@ class Scheduler(plugin: TeleportAssist, val warmupSeconds: Int) {
     private val cooldowns = TrieMap.empty[Player, Long]
     private val DefaultCooldownMillis = 5000L
 
+    /** True when warmup-seconds > 0 in config. */
     def isEnabled: Boolean = warmupSeconds > 0
 
+    /** Checks whether the player is on teleport cooldown. */
     def hasCooldown(player: Player): Boolean =
         cooldowns.get(player).exists(_ > System.currentTimeMillis())
 
+    /** Puts the player on teleport cooldown for the given duration in milliseconds. */
     def setCooldown(player: Player, millis: Long = DefaultCooldownMillis): Unit =
         cooldowns.put(player, System.currentTimeMillis() + millis)
 
+    /** Starts a warmup countdown for the player, running onComplete after the delay. */
     def startWarmup(
         player: Player,
         destination: Location,
@@ -48,6 +52,7 @@ class Scheduler(plugin: TeleportAssist, val warmupSeconds: Int) {
         AsyncCraftr.runEntityTaskLater(plugin, player, handler, Duration.ofSeconds(warmupSeconds))
     }
 
+    /** Cancels warmup if the player moved more than 0.25 blocks. */
     def checkMovement(player: Player): Unit = {
         warmups.get(player) match {
             case Some(entry) if entry.startLocation.distanceSquared(player.getLocation) > 0.25 =>
@@ -66,8 +71,10 @@ class Scheduler(plugin: TeleportAssist, val warmupSeconds: Int) {
         }
     }
 
+    /** Returns true if the player is currently in a warmup. */
     def hasWarmup(player: Player): Boolean = warmups.contains(player)
 
+    /** Removes warmup and cooldown data for a player (e.g. on quit). */
     def removePlayer(player: Player): Unit = {
         warmups.remove(player).foreach(_.cancel())
         cooldowns.remove(player)
@@ -79,6 +86,7 @@ class Scheduler(plugin: TeleportAssist, val warmupSeconds: Int) {
         onCancel: () => Unit
     ) {
         @volatile var cancelled = false
+        /** Marks this warmup as cancelled so the delayed task won't fire. */
         def cancel(): Unit = { cancelled = true }
     }
 }

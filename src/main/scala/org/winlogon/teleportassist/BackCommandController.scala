@@ -45,6 +45,7 @@ class BackCommandController(
         }
     )
 
+    /** Resolves the back location and teleports, or informs the player no location is available. */
     private def handleBack(player: Player): Unit = {
         resolveBackLocation(player) match {
             case Some(loc) =>
@@ -54,6 +55,7 @@ class BackCommandController(
         }
     }
 
+    /** Returns the player's pre-teleport location, falling back to their latest death location. */
     private def resolveBackLocation(player: Player): Option[Location] = {
         teleportService.playerLocations.get(player) match {
             case loc: Location =>
@@ -71,6 +73,7 @@ class BackCommandController(
         }
     }
 
+    /** Saves the current location, then teleports the player with warmup. */
     private def teleportBackTo(player: Player, loc: Location): Unit = {
         teleportService.playerLocations.put(player, player.getLocation)
         teleportService.teleportWithWarmup(
